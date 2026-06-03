@@ -1,0 +1,202 @@
+/* ============================================================
+   ROBIN DESIGN SYSTEM — Colors & Type tokens
+   Source of truth: "DS_ Core.fig" (Robin Figma), an Ant Design
+   based system customized for the Robin workplace platform.
+   ============================================================
+
+   FONTS
+   - Brand UI font: "Brown LL" (commercial, Lineto) — self-hosted from
+     fonts/ via the @font-face rules below (Regular/Medium/Bold + italics).
+     Hanken Grotesk is kept as a graceful fallback in --font-sans.
+   - Mono font: "Space Mono" — available on Google Fonts (CDN).
+
+   Load fonts in HTML head (Brown LL loads via this file's @font-face;
+   add the Google CDN link for the Space Mono + Hanken fallback):
+   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+   ============================================================ */
+
+/* ---- Brown LL (self-hosted, brand font) ---- */
+@font-face { font-family: "Brown LL"; font-weight: 400; font-style: normal;
+  src: url("fonts/BrownLL-Regular.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Brown LL"; font-weight: 400; font-style: italic;
+  src: url("fonts/BrownLL-Italic.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Brown LL"; font-weight: 500; font-style: normal;
+  src: url("fonts/BrownLL-Medium.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Brown LL"; font-weight: 500; font-style: italic;
+  src: url("fonts/BrownLL-MediumItalic.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Brown LL"; font-weight: 700; font-style: normal;
+  src: url("fonts/BrownLL-Bold.otf") format("opentype"); font-display: swap; }
+@font-face { font-family: "Brown LL"; font-weight: 700; font-style: italic;
+  src: url("fonts/BrownLL-BoldItalic.otf") format("opentype"); font-display: swap; }
+
+:root {
+  /* ---- Font families ---- */
+  --font-sans: "Brown LL", "Hanken Grotesk", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Space Mono", "SF Mono", ui-monospace, Menlo, monospace;
+
+  /* ============================================================
+     BASE COLORS  (raw palette — referenced by semantic tokens)
+     ============================================================ */
+
+  /* Brand magenta — Robin's signature. Primary actions & accents. */
+  --magenta-1:  #FFF0F6;   /* lightest tint / hover bg */
+  --magenta-2:  #FCE0EC;
+  --magenta-3:  #F5B6D4;
+  --magenta-5:  #D94B96;
+  --magenta-6:  #BE1F77;   /* PRIMARY — buttons, key accents */
+  --magenta-7:  #991160;   /* hover / pressed */
+  --magenta-8:  #7A0E4D;
+  --magenta-9:  #550331;   /* deepest — logo body */
+
+  /* Neutrals (gray scale) */
+  --white:      #FFFFFF;
+  --gray-1:     #F8F8F8;   /* subtle fill / page bg zones */
+  --gray-2:     #F0F0F0;   /* dividers, hover fills */
+  --gray-3:     #EEEDED;
+  --gray-4:     #D6D6D6;   /* default borders */
+  --gray-5:     #CBC9C9;
+  --gray-6:     #A1A1A1;   /* disabled text, placeholders */
+  --gray-7:     #868686;   /* tertiary text */
+  --gray-8:     #6C6C6C;   /* secondary text */
+  --gray-9:     #515151;
+  --gray-10:    #373737;
+  --gray-11:    #2A2A2A;
+  --gray-12:    #1C1C1C;   /* primary text / headings */
+  --black:      #000000;
+
+  /* Brand navy — global navigation surface */
+  --navy:       #021029;
+  --navy-border:#424242;
+
+  /* Functional — Info / Blue (links, active tab, processing) */
+  --blue-1:     #F0FAFF;   /* info bg */
+  --blue-6:     #2774C1;   /* links, active states, info */
+  --blue-7:     #1E5E9E;
+
+  /* Functional — Success / Green */
+  --green-1:    #F4FBEE;
+  --green-6:    #72B433;
+  --green-7:    #5C932A;
+
+  /* Functional — Warning / Yellow */
+  --yellow-1:   #FFFBE6;
+  --yellow-5:   #FFCD59;
+  --yellow-6:   #FDBA31;
+  --yellow-7:   #D99413;
+
+  /* Functional — Error / Red */
+  --red-1:      #FFF1F0;
+  --red-6:      #E81C1C;
+  --red-7:      #C00F0F;
+
+  /* Shadow tokens (Ant-style elevation, neutral) */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.03), 0 1px 6px -1px rgba(0,0,0,0.02), 0 2px 4px rgba(0,0,0,0.02);
+  --shadow-md:  0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05);
+  --shadow-lg:  0 6px 16px 0 rgba(0,0,0,0.08), 0 9px 28px 8px rgba(0,0,0,0.05), 0 12px 48px 16px rgba(0,0,0,0.03);
+
+  /* ============================================================
+     SEMANTIC TOKENS
+     ============================================================ */
+
+  /* Primary (brand) */
+  --color-primary:          var(--magenta-6);
+  --color-primary-hover:    var(--magenta-7);
+  --color-primary-active:   var(--magenta-8);
+  --color-primary-bg:       var(--magenta-1);
+  --color-primary-border:   var(--magenta-6);
+
+  /* Link / interactive (Robin uses blue for links + active tabs) */
+  --color-link:             var(--blue-6);
+  --color-link-hover:       #3D8AD6;
+
+  /* Text */
+  --color-text:             var(--gray-12);  /* primary text + headings */
+  --color-text-secondary:   var(--gray-8);   /* body secondary */
+  --color-text-tertiary:    var(--gray-7);   /* captions, meta */
+  --color-text-quaternary:  var(--gray-6);   /* disabled, placeholder */
+  --color-text-inverse:     var(--white);
+
+  /* Surfaces */
+  --color-bg:               var(--white);
+  --color-bg-layout:        var(--gray-1);   /* app canvas behind cards */
+  --color-bg-subtle:        var(--gray-1);
+  --color-fill-hover:       var(--gray-2);
+
+  /* Borders */
+  --color-border:           var(--gray-4);
+  --color-border-light:     var(--gray-2);
+
+  /* Status (bg / border / text triplets for tags, alerts, badges) */
+  --color-success:          var(--green-6);
+  --color-success-bg:       var(--green-1);
+  --color-success-border:   #B6E08A;
+  --color-info:             var(--blue-6);
+  --color-info-bg:          var(--blue-1);
+  --color-info-border:      #A9D4F5;
+  --color-warning:          var(--yellow-7);
+  --color-warning-bg:       var(--yellow-1);
+  --color-warning-border:   #FFE48C;
+  --color-error:            var(--red-6);
+  --color-error-bg:         var(--red-1);
+  --color-error-border:     #FFB3AE;
+
+  /* ============================================================
+     RADII  (Ant scale — Robin uses tight corners)
+     ============================================================ */
+  --radius-xs: 2px;
+  --radius-sm: 4px;   /* buttons, inputs, tags — the default */
+  --radius-md: 6px;
+  --radius-lg: 8px;   /* cards, tables, popovers */
+  --radius-xl: 12px;  /* large containers, modals */
+
+  /* ============================================================
+     SPACING  (4px base grid)
+     ============================================================ */
+  --space-xxs: 4px;
+  --space-xs:  8px;
+  --space-sm:  12px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 40px;
+  --space-3xl: 48px;
+
+  /* ============================================================
+     TYPE SCALE  (Brown LL; Ant heading + base text scale)
+     line-heights in px as defined in the Figma text styles
+     ============================================================ */
+  --text-h1-size: 38px;  --text-h1-lh: 46px;  --text-h1-weight: 500;
+  --text-h2-size: 30px;  --text-h2-lh: 38px;  --text-h2-weight: 500;
+  --text-h3-size: 24px;  --text-h3-lh: 32px;  --text-h3-weight: 500;
+  --text-h4-size: 20px;  --text-h4-lh: 28px;  --text-h4-weight: 500;
+  --text-h5-size: 16px;  --text-h5-lh: 24px;  --text-h5-weight: 500;
+
+  --text-lg-size: 16px;  --text-lg-lh: 24px;  /* base LG */
+  --text-md-size: 14px;  --text-md-lh: 22px;  /* base MD — DEFAULT body */
+  --text-sm-size: 12px;  --text-sm-lh: 20px;  /* base SM — captions */
+}
+
+/* ============================================================
+   ELEMENT-LEVEL DEFAULTS  (opt-in via these classes/selectors)
+   ============================================================ */
+
+.robin-type-base {
+  font-family: var(--font-sans);
+  font-size: var(--text-md-size);
+  line-height: var(--text-md-lh);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1.robin, .robin-h1 { font: var(--text-h1-weight) var(--text-h1-size)/var(--text-h1-lh) var(--font-sans); color: var(--color-text); margin: 0; letter-spacing: -0.01em; }
+h2.robin, .robin-h2 { font: var(--text-h2-weight) var(--text-h2-size)/var(--text-h2-lh) var(--font-sans); color: var(--color-text); margin: 0; }
+h3.robin, .robin-h3 { font: var(--text-h3-weight) var(--text-h3-size)/var(--text-h3-lh) var(--font-sans); color: var(--color-text); margin: 0; }
+h4.robin, .robin-h4 { font: var(--text-h4-weight) var(--text-h4-size)/var(--text-h4-lh) var(--font-sans); color: var(--color-text); margin: 0; }
+h5.robin, .robin-h5 { font: var(--text-h5-weight) var(--text-h5-size)/var(--text-h5-lh) var(--font-sans); color: var(--color-text); margin: 0; }
+
+p.robin, .robin-p   { font: 400 var(--text-md-size)/var(--text-md-lh) var(--font-sans); color: var(--color-text); margin: 0; }
+.robin-secondary    { color: var(--color-text-secondary); }
+.robin-caption      { font: 400 var(--text-sm-size)/var(--text-sm-lh) var(--font-sans); color: var(--color-text-tertiary); }
+.robin-link         { color: var(--color-link); cursor: pointer; text-decoration: none; }
+.robin-link:hover   { color: var(--color-link-hover); }
+code.robin, .robin-code { font-family: var(--font-mono); font-size: 13px; background: var(--gray-1); border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); padding: 1px 6px; }
