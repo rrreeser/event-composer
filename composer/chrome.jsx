@@ -107,43 +107,80 @@ function MapFilters() {
   );
 }
 
-/* The floor map with interactive room markers. */
+/* The schematic floor map: rooms as rectangles around the perimeter,
+   desks clustered into pods in the open center. Green = available, grey = booked. */
 function MapCanvas({ selectableRooms, selectedRoomId, onPickRoom, dimmed }) {
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#D5D9DF" }}>
       <MapFilters />
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
-        <div style={{ position: "relative", width: "min(100%, 1180px)", aspectRatio: "2488 / 1426",
-          filter: dimmed ? "saturate(.55) brightness(1.02)" : "none", transition: "filter .3s" }}>
-          <img src={selectableRooms ? "assets/floor-available.png" : "assets/floor.png"} alt="Floor plan"
-            style={{ width: "100%", height: "100%", display: "block", userSelect: "none", pointerEvents: "none" }} />
-          {selectableRooms && ROOMS.map(r => {
-            const sel = selectedRoomId === r.id;
-            return <RoomMarker key={r.id} room={r} selected={sel} onClick={() => onPickRoom(r)} />;
-          })}
+      <MapLegend />
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "72px 32px 32px" }}>
+        <div style={{ position: "relative", width: "min(100%, 1060px)", aspectRatio: "3 / 2",
+          background: "#fff", border: "1px solid var(--color-border)", borderRadius: 10,
+          boxShadow: "0 2px 12px rgba(0,0,0,.08)",
+          filter: dimmed ? "saturate(.6) brightness(1.02)" : "none", transition: "filter .3s" }}>
+          {/* faint open-area floor fill behind the desk pods */}
+          <div style={{ position: "absolute", left: "18%", top: "21%", width: "64%", height: "59%",
+            background: "#FAFBFC", border: "1px dashed #E2E5E9", borderRadius: 6 }}></div>
+          {DESKS.map(d => <Desk key={d.id} d={d} />)}
+          {ROOMS.map(r => (
+            <RoomRect key={r.id} room={r} selectable={selectableRooms}
+              selected={selectedRoomId === r.id} onClick={() => onPickRoom(r)} />
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-function RoomMarker({ room, selected, onClick }) {
+/* A single bookable room rectangle. */
+function RoomRect({ room, selectable, selected, onClick }) {
   const [h, setH] = useStateCh(false);
+  const avail = room.available;
+  const canPick = selectable && avail;
+  const fill = selected ? "var(--color-primary-bg)" : avail ? "#E5F2D6" : "#ECECEC";
+  const border = selected ? "var(--color-primary)" : avail ? "var(--green-6)" : "#C8C8C8";
+  const nameColor = selected ? "var(--color-primary)" : avail ? "#33561A" : "#9C9C9C";
   return (
-    <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ position: "absolute", left: room.x + "%", top: room.y + "%", transform: "translate(-50%,-50%)",
-        display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 20, cursor: "pointer",
-        background: selected ? "var(--color-primary)" : "#fff",
-        color: selected ? "#fff" : room.color, zIndex: selected || h ? 4 : 2,
-        border: "2px solid " + (selected ? "var(--color-primary)" : room.color),
-        font: "600 13px/1 var(--font-sans)", whiteSpace: "nowrap",
-        boxShadow: h || selected ? "0 4px 14px rgba(0,0,0,.22)" : "0 1px 3px rgba(0,0,0,.15)",
-        transition: "transform .12s, box-shadow .15s", transformOrigin: "center",
-        ...(h && !selected ? { transform: "translate(-50%,-50%) scale(1.06)" } : {}) }}>
-      <span style={{ width: 7, height: 7, borderRadius: "50%", background: selected ? "#fff" : "var(--green-6)" }}></span>
-      {room.name}
-      {selected && <i className="fa-solid fa-check" style={{ fontSize: 10, marginLeft: 2 }}></i>}
-    </button>
+    <div onClick={canPick ? onClick : undefined}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ position: "absolute", left: room.rx + "%", top: room.ry + "%", width: room.rw + "%", height: room.rh + "%",
+        background: fill, border: "2px solid " + border, borderRadius: 6, boxSizing: "border-box",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center", padding: 6,
+        cursor: canPick ? "pointer" : "default", zIndex: selected ? 3 : 1,
+        boxShadow: canPick && h ? "0 6px 16px rgba(190,31,119,.18)" : "none",
+        outline: canPick && h && !selected ? "2px solid var(--color-primary)" : "none", outlineOffset: -2,
+        transition: "box-shadow .15s, outline .12s, background .15s" }}>
+      <span style={{ font: "500 14px/1.25 var(--font-sans)", color: nameColor, maxWidth: "100%" }}>{room.name}</span>
+      {selected && <i className="fa-solid fa-check" style={{ fontSize: 11, color: "var(--color-primary)" }}></i>}
+    </div>
+  );
+}
+
+/* A single desk. Green when free, grey when booked. */
+function Desk({ d }) {
+  return (
+    <div style={{ position: "absolute", left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%",
+      background: d.available ? "var(--green-6)" : "#C8C8C8", borderRadius: 3, boxSizing: "border-box",
+      border: "1px solid " + (d.available ? "rgba(0,0,0,.08)" : "rgba(0,0,0,.05)") }}></div>
+  );
+}
+
+/* Availability key, pinned bottom-left in the canvas margin. */
+function MapLegend() {
+  const row = (swatch, label) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{swatch}<span>{label}</span></div>
+  );
+  const sq = (bg, bd) => <span style={{ width: 13, height: 13, borderRadius: 3, background: bg, border: "1.5px solid " + bd, flexShrink: 0 }}></span>;
+  return (
+    <div style={{ position: "absolute", left: 16, bottom: 16, zIndex: 3, background: "rgba(255,255,255,.96)",
+      border: "1px solid var(--color-border)", borderRadius: 6, padding: "9px 11px",
+      display: "flex", flexDirection: "column", gap: 7, fontSize: 12, color: "var(--color-text-secondary)",
+      boxShadow: "var(--shadow-sm)" }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: ".04em" }}>Availability</span>
+      {row(sq("#E5F2D6", "var(--green-6)"), "Available")}
+      {row(sq("#ECECEC", "#C8C8C8"), "Unavailable")}
+    </div>
   );
 }
 

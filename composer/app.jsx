@@ -78,7 +78,7 @@ function App() {
 
   const [ev, setEv] = useStateApp({
     title: "Weekly sync", allDay: false, start: 14, end: 14.5,
-    attendees: [ORGANIZER, PEOPLE_POOL[0], PEOPLE_POOL[1], PEOPLE_POOL[3]],
+    attendees: [ORGANIZER, PEOPLE_POOL[0], PEOPLE_POOL[1], PEOPLE_POOL[3], PEOPLE_POOL[4], PEOPLE_POOL[5], PEOPLE_POOL[9]],
     space: null, services: [], buffer: { on: false, before: 5, after: 5 },
     desc: "", isPrivate: false, repeatVal: "none", repeatEnds: "after", seriesOn: false, suggestion: null,
   });

@@ -290,14 +290,22 @@ function SpacesList({ onPick }) {
               <i className="fa-solid fa-couch" style={{ color: "rgba(255,255,255,.42)", fontSize: 18 }}></i>
             </div>
           </div>
-          {r.requestOnly &&
+          {r.requestOnly && r.available &&
         <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--color-text-secondary)" }}>
               <i className="fa-solid fa-lock" style={{ fontSize: 11, color: "var(--gray-7)" }}></i>
               This space is request-only
             </div>
         }
+          {!r.available &&
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--color-text-tertiary)" }}>
+              <i className="fa-solid fa-circle" style={{ fontSize: 8, color: "#C8C8C8" }}></i>
+              Unavailable for this time
+            </div>
+        }
           <div style={{ marginTop: 12 }}>
-            <Btn type="secondary" block onClick={() => onPick(r)}>{r.requestOnly ? "Create request" : "Add to event"}</Btn>
+            {r.available
+              ? <Btn type="secondary" block onClick={() => onPick(r)}>{r.requestOnly ? "Create request" : "Add to event"}</Btn>
+              : <Btn type="secondary" block disabled>Unavailable</Btn>}
           </div>
         </div>
       )}
