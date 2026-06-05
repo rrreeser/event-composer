@@ -78,54 +78,90 @@ function Pill({ icon, label, value, caret = true }) {
 
 function TopBar({ onCreate, composerOpen }) {
   return (
-    <div style={{ height: 64, borderBottom: "1px solid var(--color-border)", background: "#fff",
-      display: "flex", alignItems: "center", gap: 12, padding: "0 24px", flexShrink: 0, zIndex: 5 }}>
-      <Pill icon="building" value="54 State St." />
-      <Pill value="Floor 1" />
-      <div style={{ width: 1, height: 28, background: "var(--color-border-light)", margin: "0 4px" }}></div>
-      <Pill icon="calendar" value="Today · Nov 2" />
-      <div style={{ flex: 1 }}></div>
+    <div style={{ borderBottom: "1px solid var(--color-border)", background: "#fff",
+      display: "flex", flexDirection: "column", padding: "16px 24px 0", flexShrink: 0, zIndex: 5 }}>
+      <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 500,
+        fontFamily: "var(--font-sans)", color: "var(--color-text)", lineHeight: 1.1 }}>Map</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 14 }}>
+        <Pill icon="building" value="54 State St." />
+        <Pill value="Floor 1" />
+        {!composerOpen && <>
+          <div style={{ width: 1, height: 28, background: "var(--color-border-light)", margin: "0 4px" }}></div>
+          <Pill icon="calendar" value="Nov 2" />
+          <Pill icon="clock" value="All day" />
+        </>}
+        <div style={{ flex: 1 }}></div>
+      </div>
     </div>
   );
 }
 
-/* Filter row that sits over the map (Spaces / Space type / Amenities / Capacity) */
-function MapFilters() {
+/* Filter overlay: resource chips + inline space filter controls */
+function MapFilters({ composerOpen, activeResource, onResourceChange }) {
+  const chipStyle = (active) => ({
+    display: "inline-flex", alignItems: "center", height: 34, padding: "0 14px",
+    background: active ? "#1c1c1c" : "#fff",
+    color: active ? "#fff" : "var(--color-text)",
+    border: "1px solid " + (active ? "#1c1c1c" : "var(--color-border)"),
+    borderRadius: 4, cursor: active && composerOpen ? "default" : "pointer",
+    fontSize: 13, fontWeight: 500,
+    transition: "background .15s, color .15s, border-color .15s",
+  });
+  const spaceDropdowns = ["Space type", "Amenities", "Capacity"].map(f => (
+    <div key={f} style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px",
+      background: "#fff", border: "1px solid var(--color-border)", borderRadius: 4,
+      fontSize: 13, color: "var(--color-text)", cursor: "pointer" }}>
+      {f} <i className="fa-solid fa-angle-down" style={{ fontSize: 10, color: "var(--gray-7)" }}></i>
+    </div>
+  ));
+
   return (
     <div style={{ position: "absolute", top: 16, left: 16, display: "flex", gap: 8, zIndex: 3 }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 34, padding: "0 14px",
-        background: "var(--navy)", color: "#fff", borderRadius: 4, fontSize: 13, fontWeight: 500 }}>
-        <i className="fa-solid fa-door-open" style={{ fontSize: 12 }}></i> Spaces
-      </div>
-      {["Space type", "Amenities", "Capacity"].map(f => (
-        <div key={f} style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px",
-          background: "#fff", border: "1px solid var(--color-border)", borderRadius: 4, fontSize: 13, color: "var(--color-text)" }}>
-          {f} <i className="fa-solid fa-angle-down" style={{ fontSize: 10, color: "var(--gray-7)" }}></i>
-        </div>
-      ))}
+      {composerOpen ? (
+        /* Composer open: only Spaces chip (locked) + dropdowns inline */
+        <>
+          <div style={chipStyle(true)}>Spaces</div>
+          {spaceDropdowns}
+        </>
+      ) : activeResource ? (
+        /* Chip selected: show only that chip + (for spaces) dropdowns inline */
+        <>
+          <div onClick={() => onResourceChange(null)} style={chipStyle(true)}>
+            {activeResource.charAt(0).toUpperCase() + activeResource.slice(1)}
+          </div>
+          {activeResource === "spaces" && spaceDropdowns}
+        </>
+      ) : (
+        /* No selection: show all three chips */
+        ["Desks", "Spaces", "Lockers"].map(r => (
+          <div key={r} onClick={() => onResourceChange(r.toLowerCase())} style={chipStyle(false)}>{r}</div>
+        ))
+      )}
     </div>
   );
 }
 
 /* The schematic floor map: rooms as rectangles around the perimeter,
    desks clustered into pods in the open center. Green = available, grey = booked. */
-function MapCanvas({ selectableRooms, selectedRoomId, onPickRoom, dimmed }) {
+function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, composerOpen, activeResource, onResourceChange, eventStart, eventEnd }) {
+  const roomsDimmed = activeResource === "desks" || activeResource === "lockers";
+  const desksDimmed = activeResource === "spaces" || activeResource === "lockers";
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#D5D9DF" }}>
-      <MapFilters />
+      <MapFilters composerOpen={composerOpen} activeResource={activeResource} onResourceChange={onResourceChange} />
       <MapLegend />
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "72px 32px 32px" }}>
         <div style={{ position: "relative", width: "min(100%, 1060px)", aspectRatio: "3 / 2",
           background: "#fff", border: "1px solid var(--color-border)", borderRadius: 10,
-          boxShadow: "0 2px 12px rgba(0,0,0,.08)",
-          filter: dimmed ? "saturate(.6) brightness(1.02)" : "none", transition: "filter .3s" }}>
-          {/* faint open-area floor fill behind the desk pods */}
+          boxShadow: "0 2px 12px rgba(0,0,0,.08)" }}>
           <div style={{ position: "absolute", left: "18%", top: "21%", width: "64%", height: "59%",
             background: "#FAFBFC", border: "1px dashed #E2E5E9", borderRadius: 6 }}></div>
-          {DESKS.map(d => <Desk key={d.id} d={d} />)}
+          {DESKS.map(d => <Desk key={d.id} d={d} dimmed={desksDimmed} />)}
           {ROOMS.map(r => (
             <RoomRect key={r.id} room={r} selectable={selectableRooms}
-              selected={selectedRoomId === r.id} onClick={() => onPickRoom(r)} />
+              selected={selectedRoomIds.includes(r.id)} dimmed={roomsDimmed}
+              eventStart={eventStart} eventEnd={eventEnd}
+              onClick={() => onPickRoom(r)} />
           ))}
         </div>
       </div>
@@ -134,13 +170,15 @@ function MapCanvas({ selectableRooms, selectedRoomId, onPickRoom, dimmed }) {
 }
 
 /* A single bookable room rectangle. */
-function RoomRect({ room, selectable, selected, onClick }) {
+function RoomRect({ room, selectable, selected, onClick, dimmed, eventStart, eventEnd }) {
   const [h, setH] = useStateCh(false);
-  const avail = room.available;
-  const canPick = selectable && avail;
-  const fill = selected ? "var(--color-primary-bg)" : avail ? "#E5F2D6" : "#ECECEC";
-  const border = selected ? "var(--color-primary)" : avail ? "var(--green-6)" : "#C8C8C8";
-  const nameColor = selected ? "var(--color-primary)" : avail ? "#33561A" : "#9C9C9C";
+  const avail = !((room.dayBusy || []).some(([s, e]) => eventStart < e && eventEnd > s));
+  const canPick = !dimmed;
+  const showHover = canPick && avail; // hover ring only for available rooms
+  const fill = dimmed ? "#ECECEC" : (selected ? "var(--blue-6)" : avail ? "var(--green-6)" : "#ECECEC");
+  const border = dimmed ? "#C8C8C8" : (selected ? "var(--blue-7)" : avail ? "var(--green-7)" : "#C8C8C8");
+  const nameColor = dimmed ? "#9C9C9C" : (selected ? "#fff" : avail ? "#000" : "#9C9C9C");
+  const textShadow = !dimmed && avail && !selected ? "-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff" : "none";
   return (
     <div onClick={canPick ? onClick : undefined}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
@@ -148,21 +186,21 @@ function RoomRect({ room, selectable, selected, onClick }) {
         background: fill, border: "2px solid " + border, borderRadius: 6, boxSizing: "border-box",
         display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center", padding: 6,
         cursor: canPick ? "pointer" : "default", zIndex: selected ? 3 : 1,
-        boxShadow: canPick && h ? "0 6px 16px rgba(190,31,119,.18)" : "none",
-        outline: canPick && h && !selected ? "2px solid var(--color-primary)" : "none", outlineOffset: -2,
+        boxShadow: showHover && h ? "0 6px 16px rgba(39,116,193,.18)" : "none",
+        outline: showHover && h && !selected ? "2px solid var(--blue-6)" : "none", outlineOffset: -2,
         transition: "box-shadow .15s, outline .12s, background .15s" }}>
-      <span style={{ font: "500 14px/1.25 var(--font-sans)", color: nameColor, maxWidth: "100%" }}>{room.name}</span>
-      {selected && <i className="fa-solid fa-check" style={{ fontSize: 11, color: "var(--color-primary)" }}></i>}
+      <span style={{ font: "500 14px/1.25 var(--font-sans)", color: nameColor, maxWidth: "100%", textShadow }}>{room.name}</span>
     </div>
   );
 }
 
-/* A single desk. Green when free, grey when booked. */
-function Desk({ d }) {
+/* A single desk. Greyed out when the Spaces resource is active (not part of that flow). */
+function Desk({ d, dimmed }) {
+  const grey = dimmed || !d.available;
   return (
     <div style={{ position: "absolute", left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%",
-      background: d.available ? "var(--green-6)" : "#C8C8C8", borderRadius: 3, boxSizing: "border-box",
-      border: "1px solid " + (d.available ? "rgba(0,0,0,.08)" : "rgba(0,0,0,.05)") }}></div>
+      background: grey ? "#C8C8C8" : "var(--green-6)", borderRadius: 3, boxSizing: "border-box",
+      border: "1px solid " + (grey ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.08)") }}></div>
   );
 }
 
@@ -178,7 +216,7 @@ function MapLegend() {
       display: "flex", flexDirection: "column", gap: 7, fontSize: 12, color: "var(--color-text-secondary)",
       boxShadow: "var(--shadow-sm)" }}>
       <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: ".04em" }}>Availability</span>
-      {row(sq("#E5F2D6", "var(--green-6)"), "Available")}
+      {row(sq("var(--green-6)", "var(--green-7)"), "Available")}
       {row(sq("#ECECEC", "#C8C8C8"), "Unavailable")}
     </div>
   );

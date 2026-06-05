@@ -141,11 +141,15 @@ function PeopleSection({ attendees, onAdd, onRemove, slot }) {
 }
 
 /* Space card */
-function SpaceCard({ room, services, onToggleService, buffer, onSetBuffer, onChange, onRemove }) {
+function roomBusyAt(room, start, end) {
+  return (room.dayBusy || []).some(([s, e]) => start < e && end > s);
+}
+
+function SpaceCard({ room, isUnavailable, services, onToggleService, buffer, onSetBuffer, onChange, onRemove }) {
   const amenityIcon = { tv: "tv", video: "video", phone: "phone" };
   const [bufOpen, setBufOpen] = useStateCo(buffer.on);
   return (
-    <div style={{ border: "1px solid var(--color-border)", borderRadius: 12, overflow: "hidden" }}>
+    <div style={{ border: "1px solid " + (isUnavailable ? "var(--color-error)" : "var(--color-border)"), borderRadius: 12, overflow: "hidden" }}>
       <div style={{ padding: 16 }}>
         <div style={{ display: "flex", gap: 14 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -164,6 +168,13 @@ function SpaceCard({ room, services, onToggleService, buffer, onSetBuffer, onCha
           </div>
         </div>
       </div>
+      {isUnavailable &&
+      <div style={{ margin: "0 16px 12px", padding: "8px 10px", background: "var(--color-error-bg)", border: "1px solid var(--color-error-border)",
+        borderRadius: 6, fontSize: 12.5, color: "var(--color-error)", display: "flex", gap: 7 }}>
+          <i className="fa-solid fa-circle-exclamation" style={{ fontSize: 12, marginTop: 2, flexShrink: 0 }}></i>
+          The space is unavailable at this time.
+        </div>
+      }
       {room.requestOnly &&
       <div style={{ margin: "0 16px 12px", padding: "8px 10px", background: "var(--yellow-1)", border: "1px solid var(--yellow-6)",
         borderRadius: 6, fontSize: 12.5, color: "var(--color-text-secondary)", display: "flex", gap: 7 }}>
@@ -265,7 +276,7 @@ function SuggestedSpaceCard({ room, onAdd, onBrowse }) {
 
 /* Full Spaces panel — replaces the composer body when picking a space.
    Lists every bookable room on the map; "Add to event" returns to the composer. */
-function SpacesList({ onPick }) {
+function SpacesList({ onPick, selectedRoomIds = [] }) {
   const [q, setQ] = useStateCo("");
   const amenityIcon = { tv: "tv", video: "video", phone: "phone" };
   const list = ROOMS.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
@@ -304,7 +315,9 @@ function SpacesList({ onPick }) {
         }
           <div style={{ marginTop: 12 }}>
             {r.available
-              ? <Btn type="secondary" block onClick={() => onPick(r)}>{r.requestOnly ? "Create request" : "Add to event"}</Btn>
+              ? <Btn type="secondary" block onClick={() => onPick(r)}>
+                  {r.requestOnly ? "Create request" : selectedRoomIds.includes(r.id) ? "Remove from event" : "Add to event"}
+                </Btn>
               : <Btn type="secondary" block disabled>Unavailable</Btn>}
           </div>
         </div>
@@ -316,11 +329,94 @@ function SpacesList({ onPick }) {
 
 }
 
+function SpaceDetailsPanel({ room, alreadyAdded, composerOpen, onBack, onAdd, onRemove }) {
+  return (
+    <div style={{ width: 420, flexShrink: 0, height: "100%", background: "#fff",
+      borderLeft: "1px solid var(--color-border)", display: "flex", flexDirection: "column",
+      boxShadow: "-8px 0 24px rgba(0,0,0,.06)" }}>
+      {/* header */}
+      <div style={{ height: 56, display: "flex", alignItems: "center", gap: 12,
+        borderBottom: "1px solid var(--color-border-light)", flexShrink: 0, padding: "0 16px" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer",
+          color: "var(--gray-7)", fontSize: 17, padding: 0, display: "inline-flex", marginLeft: -4 }}>
+          <i className="fa-solid fa-angle-left"></i>
+        </button>
+        <span style={{ fontSize: 16, fontWeight: 500, color: "var(--color-text)" }}>Space details</span>
+        <div style={{ flex: 1 }} />
+      </div>
+      {/* body */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {/* placeholder image */}
+        <div style={{ width: "100%", height: 200, background: "linear-gradient(135deg, #3a3f4a, #21252d)",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <i className="fa-solid fa-couch" style={{ color: "rgba(255,255,255,.25)", fontSize: 52 }}></i>
+        </div>
+        {/* details */}
+        <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <Tag status={room.available ? "available" : "error"}>
+            {room.available ? "Available" : "Booked"}
+          </Tag>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: "linear-gradient(135deg,#3a3f4a,#21252d)",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <i className="fa-solid fa-door-open" style={{ color: "rgba(255,255,255,.55)", fontSize: 18 }}></i>
+            </div>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: "var(--color-text)", lineHeight: 1.2 }}>{room.name}</div>
+              <div style={{ fontSize: 13, color: "var(--color-text-tertiary)", marginTop: 3 }}>{room.floor} · {room.building}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "var(--color-text)" }}>
+              <i className="fa-solid fa-user-group" style={{ color: "var(--gray-7)", fontSize: 14, width: 18, textAlign: "center" }}></i>
+              Fits: {room.cap}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "var(--color-text)" }}>
+              <i className="fa-solid fa-wheelchair" style={{ color: "var(--gray-7)", fontSize: 14, width: 18, textAlign: "center" }}></i>
+              Accessible
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* footer */}
+      <div style={{ padding: 16, borderTop: "1px solid var(--color-border-light)", flexShrink: 0 }}>
+        {!composerOpen
+          ? <Btn type="primary" block size="large" onClick={onAdd}>Create event</Btn>
+          : alreadyAdded
+            ? <Btn type="primary" block size="large" danger onClick={onRemove}>Remove from event</Btn>
+            : <Btn type="primary" block size="large" onClick={onAdd}>Add to event</Btn>}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmCloseModal({ onCancel, onConfirm }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 200,
+      display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 360,
+        boxShadow: "var(--shadow-lg)", animation: "rcPop .18s ease both" }}>
+        <div style={{ fontSize: 16, fontWeight: 500, color: "var(--color-text)", marginBottom: 8 }}>
+          Your event isn't saved
+        </div>
+        <div style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 24 }}>
+          All unsaved changes will be lost. Are you sure?
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Btn type="secondary" onClick={onCancel}>Cancel</Btn>
+          <Btn type="primary" onClick={onConfirm}>Ok</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, onClose, onSubmit, mapMode, onPickRoom }) {
   const [moreOpen, setMoreOpen] = useStateCo(false);
   const [descOpen, setDescOpen] = useStateCo(false);
   const [videoOpen, setVideoOpen] = useStateCo(false);
   const [dismissSuggest, setDismissSuggest] = useStateCo(false);
+  const [confirmClose, setConfirmClose] = useStateCo(false);
   const compact = tweaks.density === "compact";
   const floating = !mapMode;
 
@@ -334,18 +430,17 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
 
   const hasGuests = ev.attendees.filter((a) => !a.organizer).length > 0;
   const openFind = () => {setPicking(false);setFinding(true);};
-  const inlineSuggest = (loc) => tweaks.inlineSuggest === loc && hasGuests ?
-  <InlineTimeSuggestions attendees={ev.attendees} space={ev.space} duration={dur} anchor={ev.start}
-  variant={tweaks.moreTimesStyle} onPick={(s) => set({ start: s.start, end: s.end })} onMore={openFind} /> :
-  null;
+  const inlineSuggest = ev.spaces && ev.spaces.length > 0
+    ? <InlineTimeSuggestions attendees={ev.attendees} space={ev.spaces[0]} duration={dur} anchor={ev.start}
+        variant="border" onPick={(s) => set({ start: s.start, end: s.end })} onMore={openFind} />
+    : null;
 
-  const suggestedSpace = !ev.space && hasGuests && !dismissSuggest ? suggestSpace(ev.attendees, ev.start, ev.end) : null;
-  const peopleSuggest = inlineSuggest("people");
-
-  const requestOnly = ev.space && ev.space.requestOnly;
+  const suggestedSpace = (!ev.spaces || ev.spaces.length === 0) && hasGuests && !dismissSuggest ? suggestSpace(ev.attendees, ev.start, ev.end) : null;
+  const requestOnly = ev.spaces && ev.spaces.some(s => s.requestOnly);
   const ctaLabel = requestOnly ? "Send request" : "Create event";
 
   return (
+    <React.Fragment>
     <div style={{ width: 420, flexShrink: 0, height: "100%", background: "#fff",
       border: floating ? "1px solid var(--color-border)" : "none", borderLeft: "1px solid var(--color-border)",
       borderRadius: floating ? 12 : 0, overflow: "hidden",
@@ -360,13 +455,13 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
         }
         <span style={{ fontSize: 16, fontWeight: 500, color: "var(--color-text)" }}>{headerTitle}</span>
         <div style={{ flex: 1 }}></div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--gray-7)", fontSize: 16 }}><i className="fa-solid fa-xmark"></i></button>
+        <button onClick={() => setConfirmClose(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--gray-7)", fontSize: 16 }}><i className="fa-solid fa-xmark"></i></button>
       </div>
 
       {subview === "spaces" ?
-      <SpacesList onPick={(r) => onPickRoom(r)} /> :
+      <SpacesList selectedRoomIds={(ev.spaces || []).map(s => s.id)} onPick={(r) => onPickRoom(r)} /> :
       subview === "find" ?
-      <FindTimePanel attendees={ev.attendees} space={ev.space} duration={dur} dateLabel="Mon, Nov 2"
+      <FindTimePanel attendees={ev.attendees} space={ev.spaces && ev.spaces[0]} duration={dur} dateLabel="Mon, Nov 2"
       onPick={(s) => {set({ start: s.start, end: s.end });setFinding(false);}} /> :
 
       <React.Fragment>
@@ -414,16 +509,11 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
               </div>
               {/* RECURRING — hidden until More options is opened */}
               {tweaks.recurring === "cadence" ?
-              <SeriesCadenceBuilder room={ev.space} enabled={ev.seriesOn} onToggle={(v) => set({ seriesOn: v })} /> :
+              <SeriesCadenceBuilder room={ev.spaces && ev.spaces[0]} enabled={ev.seriesOn} onToggle={(v) => set({ seriesOn: v })} /> :
               <RepeatDropdown value={ev.repeatVal} onChange={(v) => set({ repeatVal: v })} ends={ev.repeatEnds} onEnds={(e) => set({ repeatEnds: e })} />}
             </div>
             }
 
-          {/* inline suggested times — under Date and time variant */}
-          {inlineSuggest("datetime")}
-
-          {/* Find availability — suggested time pills (people placement, above People) */}
-          {peopleSuggest && <div style={{ marginTop: 16 }}>{peopleSuggest}</div>}
         </div>
 
         {/* people */}
@@ -435,18 +525,26 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
 
         {/* space */}
         <div>
-          {ev.space ?
+          {ev.spaces && ev.spaces.length > 0 ?
             <React.Fragment>
               <FieldLabel>Space</FieldLabel>
-              <SpaceCard room={ev.space} services={ev.services} buffer={ev.buffer}
-              onToggleService={(s) => set({ services: ev.services.includes(s) ? ev.services.filter((x) => x !== s) : [...ev.services, s] })}
-              onSetBuffer={(b) => set({ buffer: b })}
-              onChange={() => setPicking(true)}
-              onRemove={() => set({ space: null, services: [], buffer: { on: false, before: 5, after: 5 } })} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {ev.spaces.map(space => (
+                  <SpaceCard key={space.id} room={space} isUnavailable={roomBusyAt(space, ev.start, ev.end)} services={ev.services} buffer={ev.buffer}
+                  onToggleService={(s) => set({ services: ev.services.includes(s) ? ev.services.filter((x) => x !== s) : [...ev.services, s] })}
+                  onSetBuffer={(b) => set({ buffer: b })}
+                  onChange={() => setPicking(true)}
+                  onRemove={() => {
+                    const next = ev.spaces.filter(s => s.id !== space.id);
+                    set({ spaces: next, ...(next.length === 0 ? { services: [], buffer: { on: false, before: 5, after: 5 } } : {}) });
+                  }} />
+                ))}
+                <AddRow icon="plus" label="Add another space" onClick={() => setPicking(true)} />
+              </div>
             </React.Fragment> :
             suggestedSpace ?
             <SuggestedSpaceCard room={suggestedSpace}
-            onAdd={() => set({ space: suggestedSpace })}
+            onAdd={() => set({ spaces: [suggestedSpace] })}
             onBrowse={() => setPicking(true)} /> :
 
             <React.Fragment>
@@ -455,6 +553,9 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
             </React.Fragment>
             }
         </div>
+
+        {/* find a time — shown whenever a space is added */}
+        {inlineSuggest}
 
         {/* description */}
         <div>
@@ -495,8 +596,10 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
       </div>
       </React.Fragment>
       }
-    </div>);
+    </div>
+    {confirmClose && <ConfirmCloseModal onCancel={() => setConfirmClose(false)} onConfirm={onClose} />}
+    </React.Fragment>);
 
 }
 
-Object.assign(window, { Composer });
+Object.assign(window, { Composer, SpaceDetailsPanel });

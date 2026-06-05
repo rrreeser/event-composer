@@ -120,8 +120,7 @@ function chipTime(h) {
    next unused candidate in when one is picked. */
 function buildPillSuggestions(attendees, space, duration) {
   const slots = buildTimeSlots(attendees, space, duration);
-  const score = (s) => (s.roomBusy ? 1 : 0) + s.conflictPeople.length;
-  const free = slots.filter((s) => score(s) === 0).sort((a, b) => a.start - b.start);
+  const free = slots.filter((s) => s.conflictPeople.length === 0).sort((a, b) => a.start - b.start);
   const distinct = [];
   let last = -99;
   for (const s of free) {if (s.start - last >= 1) {distinct.push(s);last = s.start;}}
@@ -150,7 +149,6 @@ function InlineTimeSuggestions({ attendees, space, duration, anchor = 14, onPick
   const [cursor, setCursor] = useStateFt(2);
   // Reset the shown suggestions when the scheduling context changes (guests / space / duration).
   React.useEffect(() => {setShownIdx([0, 1]);setCursor(2);}, [attendees.length, space && space.id, duration]);
-  if (candidates.length === 0) return null;
   const border = variant === "border";
   const grad = { background: "linear-gradient(90deg, #BE1F77, #2774C1)", WebkitBackgroundClip: "text",
     backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent" };
@@ -159,6 +157,21 @@ function InlineTimeSuggestions({ attendees, space, duration, anchor = 14, onPick
   { borderRadius: 10, padding: "12px 14px",
     background: "linear-gradient(105deg, var(--magenta-1) 0%, #F4EEFB 50%, #EAF2FB 100%)",
     border: "1px solid #ECD9E6", animation: "rcReveal .3s ease both" };
+  if (candidates.length === 0) return (
+    <div style={wrap}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        {border ? <MoreTimesSparkle /> : <i className="fa-solid fa-clock-rotate-left" style={{ fontSize: 14, color: "var(--color-primary)" }}></i>}
+        <span style={{ ...grad, fontSize: "14px", fontWeight: "400" }}>Find availability</span>
+      </div>
+      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <button onClick={onMore} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
+          background: "none", border: "none", cursor: "pointer", color: "var(--color-link)", fontSize: 14,
+          fontWeight: 500, fontFamily: "var(--font-sans)", padding: "0 2px", whiteSpace: "nowrap", height: "32px" }}>
+          View more
+        </button>
+      </div>
+    </div>
+  );
   // Apply a slot, then reveal the next never-shown suggestion in its place
   // (picked times don't come back — we already took them).
   const pick = (i) => {

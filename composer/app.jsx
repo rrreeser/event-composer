@@ -1,13 +1,23 @@
 /* Event composer prototype — app shell, state, tweaks. */
-const { useState: useStateApp } = React;
+const { useState: useStateApp, useEffect: useEffectApp } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "surface": "map",
-  "inlineSuggest": "people",
-  "moreTimesStyle": "border",
-  "recurring": "cadence",
-  "density": "comfortable"
+  "entryPoint": "direct-url"
 }/*EDITMODE-END*/;
+
+const ENTRY_CONFIGS = {
+  "direct-url": {
+    title: "", attendees: [ORGANIZER], spaces: [],
+  },
+  "edit-event": {
+    title: "Weekly sync",
+    attendees: [ORGANIZER, PEOPLE_POOL[0], PEOPLE_POOL[1], PEOPLE_POOL[3], PEOPLE_POOL[4]],
+    spaces: [ROOMS[0]],
+  },
+  "space-first": {
+    title: "", attendees: [ORGANIZER], spaces: [ROOMS[1]],
+  },
+};
 
 /* Small segmented control for the tweak panel (descriptive labels → machine values). */
 function Seg({ value, options, onChange }) {
@@ -40,7 +50,7 @@ function TweakField({ label, hint, children }) {
 }
 
 function SuccessPanel({ ev, mapMode, onDone }) {
-  const requestOnly = ev.space && ev.space.requestOnly;
+  const requestOnly = ev.spaces && ev.spaces.some(s => s.requestOnly);
   return (
     <div style={{ width: 420, flexShrink: 0, height: "100%", background: "#fff",
       border: !mapMode ? "1px solid var(--color-border)" : "none", borderLeft: "1px solid var(--color-border)",
@@ -59,7 +69,7 @@ function SuccessPanel({ ev, mapMode, onDone }) {
         </div>
         <div style={{ fontSize: 14, color: "var(--color-text-secondary)", maxWidth: 280, marginBottom: 22, lineHeight: 1.5 }}>
           <strong style={{ color: "var(--color-text)", fontWeight: 500 }}>{ev.title || "Untitled event"}</strong>
-          {ev.space ? <> · {ev.space.name}</> : null}
+          {ev.spaces && ev.spaces.length > 0 ? <> · {ev.spaces.map(s => s.name).join(', ')}</> : null}
           <br />{fmtTime(ev.start)} – {fmtTime(ev.end)} · Nov 2
           {(ev.seriesOn || ev.repeatVal !== "none") && <><br /><span style={{ fontSize: 12.5, color: "var(--color-text-tertiary)" }}>Repeats weekly · 12 occurrences</span></>}
         </div>
@@ -74,12 +84,12 @@ function SuccessPanel({ ev, mapMode, onDone }) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const mapMode = t.surface === "map";
+  const mapMode = true;
 
   const [ev, setEv] = useStateApp({
-    title: "Weekly sync", allDay: false, start: 14, end: 14.5,
-    attendees: [ORGANIZER, PEOPLE_POOL[0], PEOPLE_POOL[1], PEOPLE_POOL[3], PEOPLE_POOL[4], PEOPLE_POOL[5], PEOPLE_POOL[9]],
-    space: null, services: [], buffer: { on: false, before: 5, after: 5 },
+    title: "", allDay: false, start: 14, end: 14.5,
+    attendees: [ORGANIZER],
+    spaces: [], services: [], buffer: { on: false, before: 5, after: 5 },
     desc: "", isPrivate: false, repeatVal: "none", repeatEnds: "after", seriesOn: false, suggestion: null,
   });
   const set = (patch) => setEv(prev => ({ ...prev, ...patch }));
@@ -88,20 +98,64 @@ function App() {
   const [picking, setPicking] = useStateApp(false);
   const [finding, setFinding] = useStateApp(false);
   const [success, setSuccess] = useStateApp(false);
+  const [viewingSpace, setViewingSpace] = useStateApp(null);
+  const [activeResource, setActiveResource] = useStateApp("spaces");
 
-  const pickRoom = (room) => { set({ space: room }); setPicking(false); };
-  const reopen = () => {
-    setSuccess(false); setOpen(true); setPicking(false); setFinding(false);
-    setEv(prev => ({ ...prev, title: "", space: null, services: [], seriesOn: false, repeatVal: "none", suggestion: null }));
+  useEffectApp(() => {
+    const config = ENTRY_CONFIGS[t.entryPoint];
+    if (!config) return;
+    setEv(prev => ({ ...prev, ...config, services: [], buffer: { on: false, before: 5, after: 5 } }));
+    setOpen(true);
+    setPicking(false);
+    setFinding(false);
+    setSuccess(false);
+    setViewingSpace(null);
+    setActiveResource("spaces");
+  }, [t.entryPoint]);
+
+  // Map click → view space details
+  const viewRoom = (room) => { setViewingSpace(room); setActiveResource("spaces"); };
+
+  // Space details footer action (add or remove)
+  const handleSpaceAction = () => {
+    const alreadyAdded = ev.spaces.some(s => s.id === viewingSpace.id);
+    if (alreadyAdded) {
+      const next = ev.spaces.filter(s => s.id !== viewingSpace.id);
+      set({ spaces: next, ...(next.length === 0 ? { services: [], buffer: { on: false, before: 5, after: 5 } } : {}) });
+    } else {
+      set({ spaces: [...ev.spaces, viewingSpace] });
+      setOpen(true);
+    }
+    setViewingSpace(null);
   };
 
-  const panel = (open || success) ? (
+  // SpacesList (inside composer) direct add/remove
+  const pickRoom = (room) => {
+    const isSelected = ev.spaces.some(s => s.id === room.id);
+    set({ spaces: isSelected ? ev.spaces.filter(s => s.id !== room.id) : [...ev.spaces, room] });
+    setPicking(false);
+  };
+  const reopen = () => {
+    setSuccess(false); setOpen(true); setPicking(false); setFinding(false); setViewingSpace(null);
+    setActiveResource("spaces");
+    setEv(prev => ({ ...prev, title: "", spaces: [], services: [], seriesOn: false, repeatVal: "none", suggestion: null }));
+  };
+
+  const panel = viewingSpace ? (
+    <SpaceDetailsPanel
+      room={viewingSpace}
+      alreadyAdded={ev.spaces.some(s => s.id === viewingSpace.id)}
+      composerOpen={open}
+      onBack={() => setViewingSpace(null)}
+      onAdd={handleSpaceAction}
+      onRemove={handleSpaceAction} />
+  ) : (open || success) ? (
     success
       ? <SuccessPanel ev={ev} mapMode={mapMode} onDone={reopen} />
       : <Composer ev={ev} set={set} tweaks={t} picking={picking} setPicking={setPicking}
           finding={finding} setFinding={setFinding}
           mapMode={mapMode} onPickRoom={pickRoom}
-          onClose={() => setOpen(false)} onSubmit={() => { setSuccess(true); }} />
+          onClose={() => { setOpen(false); setViewingSpace(null); setActiveResource(null); set({ spaces: [], services: [], buffer: { on: false, before: 5, after: 5 } }); }} onSubmit={() => { setSuccess(true); }} />
   ) : null;
 
   return (
@@ -115,7 +169,7 @@ function App() {
           {/* canvas */}
           <div style={mapMode ? { flex: 1, position: "relative", minWidth: 0, alignSelf: "stretch" } : { position: "absolute", inset: 0 }}>
             {mapMode
-              ? <MapCanvas selectableRooms={picking} selectedRoomId={ev.space && ev.space.id} onPickRoom={pickRoom} dimmed={open && !picking} />
+              ? <MapCanvas selectableRooms={picking} selectedRoomIds={ev.spaces.map(s => s.id)} onPickRoom={viewRoom} composerOpen={open || !!viewingSpace} activeResource={activeResource} onResourceChange={setActiveResource} eventStart={ev.start} eventEnd={ev.end} />
               : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                   background: "radial-gradient(circle at 50% 0%, #fff, var(--color-bg-layout))" }}>
                   {!open && !success && (
@@ -135,36 +189,30 @@ function App() {
         </div>
       </div>
 
-      {/* map mode: composer is a full-height sider flush to the top of the screen */}
-      {mapMode && panel && (
-        <div style={{ position: "relative", zIndex: 10, display: "flex", flexShrink: 0 }}>{panel}</div>
+      {/* map mode: right sider — composer/success when open, blank placeholder when closed */}
+      {mapMode && (
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexShrink: 0 }}>
+          {panel || <div style={{ width: 420, flexShrink: 0, height: "100%", background: "#fff",
+            borderLeft: "1px solid var(--color-border)", boxShadow: "-8px 0 24px rgba(0,0,0,.06)" }} />}
+        </div>
       )}
 
       {/* Tweaks */}
-      <TweaksPanel>
-        <TweakField label="Surface" hint="Where the composer lives.">
-          <Seg value={t.surface} onChange={(v) => setTweak("surface", v)}
-            options={[{ value: "map", label: "Over map" }, { value: "standalone", label: "Standalone" }]} />
+      <div style={{ position: "fixed", bottom: 16, left: 16, zIndex: 9999,
+        width: 240, background: "rgba(250,249,247,.95)", borderRadius: 12, padding: "12px 14px",
+        boxShadow: "0 4px 24px rgba(0,0,0,.14)", border: "1px solid rgba(0,0,0,.08)",
+        fontFamily: "var(--font-sans)" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: ".05em", textTransform: "uppercase",
+          color: "#9a8f80", marginBottom: 10 }}>Tweaks</div>
+        <TweakField label="Entry point" hint="Starting state for the event composer.">
+          <Seg value={t.entryPoint} onChange={(v) => setTweak("entryPoint", v)}
+            options={[
+              { value: "direct-url", label: "Direct URL" },
+              { value: "edit-event", label: "Edit event" },
+              { value: "space-first", label: "Space first" },
+            ]} />
         </TweakField>
-        <div style={{ height: 1, background: "#eceae7", margin: "4px 0 16px" }}></div>
-        <TweakField label="Inline suggested times" hint="Surface a row of suggested times as guests are added. Pick where they appear.">
-          <Seg value={t.inlineSuggest} onChange={(v) => setTweak("inlineSuggest", v)}
-            options={[{ value: "off", label: "Off" }, { value: "datetime", label: "Date & time" }, { value: "people", label: "People" }]} />
-        </TweakField>
-        <TweakField label="Find availability style" hint="How the suggested-time pills are framed.">
-          <Seg value={t.moreTimesStyle} onChange={(v) => setTweak("moreTimesStyle", v)}
-            options={[{ value: "border", label: "Gradient border" }, { value: "panel", label: "Tinted panel" }]} />
-        </TweakField>
-        <TweakField label="Recurring events" hint="Repeat & manage a series.">
-          <Seg value={t.recurring} onChange={(v) => setTweak("recurring", v)}
-            options={[{ value: "dropdown", label: "Repeat dropdown" }, { value: "cadence", label: "Cadence builder" }]} />
-        </TweakField>
-        <div style={{ height: 1, background: "#eceae7", margin: "4px 0 16px" }}></div>
-        <TweakField label="Density">
-          <Seg value={t.density} onChange={(v) => setTweak("density", v)}
-            options={[{ value: "comfortable", label: "Comfortable" }, { value: "compact", label: "Compact" }]} />
-        </TweakField>
-      </TweaksPanel>
+      </div>
     </div>
   );
 }
