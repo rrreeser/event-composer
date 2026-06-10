@@ -76,16 +76,17 @@ function Pill({ icon, label, value, caret = true }) {
   );
 }
 
-function TopBar({ onCreate, composerOpen }) {
+function TopBar({ onCreate, composerOpen, activeFloor = 1 }) {
+  const floorLabel = (FLOOR_DATA[activeFloor] || FLOOR_DATA[1]).label;
   return (
     <div style={{ borderBottom: "1px solid var(--color-border)", background: "#fff",
       display: "flex", flexDirection: "column", padding: "16px 24px 0", flexShrink: 0, zIndex: 5 }}>
       <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 500,
         fontFamily: "var(--font-sans)", color: "var(--color-text)", lineHeight: 1.1 }}>Map</h1>
       <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 14 }}>
-        <Pill icon="building" value="54 State St." />
-        <Pill value="Floor 1" />
         {!composerOpen && <>
+          <Pill icon="building" value="54 State St." />
+          <Pill value={floorLabel} />
           <div style={{ width: 1, height: 28, background: "var(--color-border-light)", margin: "0 4px" }}></div>
           <Pill icon="calendar" value="Nov 2" />
           <Pill icon="clock" value="All day" />
@@ -143,9 +144,10 @@ function MapFilters({ composerOpen, activeResource, onResourceChange }) {
 
 /* The schematic floor map: rooms as rectangles around the perimeter,
    desks clustered into pods in the open center. Green = available, grey = booked. */
-function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, composerOpen, activeResource, onResourceChange, eventStart, eventEnd }) {
+function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, composerOpen, activeResource, onResourceChange, eventStart, eventEnd, onPickDesk, activeFloor = 1 }) {
   const roomsDimmed = activeResource === "desks" || activeResource === "lockers";
   const desksDimmed = activeResource === "spaces" || activeResource === "lockers";
+  const floorData = FLOOR_DATA[activeFloor] || FLOOR_DATA[1];
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#D5D9DF" }}>
       <MapFilters composerOpen={composerOpen} activeResource={activeResource} onResourceChange={onResourceChange} />
@@ -156,8 +158,8 @@ function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, composer
           boxShadow: "0 2px 12px rgba(0,0,0,.08)" }}>
           <div style={{ position: "absolute", left: "18%", top: "21%", width: "64%", height: "59%",
             background: "#FAFBFC", border: "1px dashed #E2E5E9", borderRadius: 6 }}></div>
-          {DESKS.map(d => <Desk key={d.id} d={d} dimmed={desksDimmed} />)}
-          {ROOMS.map(r => (
+          {floorData.desks.map(d => <Desk key={d.id} d={d} dimmed={desksDimmed} onClick={onPickDesk ? () => onPickDesk(d) : undefined} />)}
+          {floorData.rooms.map(r => (
             <RoomRect key={r.id} room={r} selectable={selectableRooms}
               selected={selectedRoomIds.includes(r.id)} dimmed={roomsDimmed}
               eventStart={eventStart} eventEnd={eventEnd}
@@ -195,12 +197,14 @@ function RoomRect({ room, selectable, selected, onClick, dimmed, eventStart, eve
 }
 
 /* A single desk. Greyed out when the Spaces resource is active (not part of that flow). */
-function Desk({ d, dimmed }) {
+function Desk({ d, dimmed, onClick }) {
   const grey = dimmed || !d.available;
   return (
-    <div style={{ position: "absolute", left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%",
+    <div onClick={onClick}
+      style={{ position: "absolute", left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%",
       background: grey ? "#C8C8C8" : "var(--green-6)", borderRadius: 3, boxSizing: "border-box",
-      border: "1px solid " + (grey ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.08)") }}></div>
+      border: "1px solid " + (grey ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.08)"),
+      cursor: onClick ? "pointer" : "default" }}></div>
   );
 }
 
@@ -222,4 +226,30 @@ function MapLegend() {
   );
 }
 
-Object.assign(window, { Sidebar, TopBar, MapCanvas, Pill });
+function FloorBanner({ onClose, onGoBack }) {
+  return (
+    <div style={{ position: "absolute", top: 16, right: 16,
+      zIndex: 20, background: "#fff", borderRadius: 12, padding: "16px 20px", width: 340,
+      boxShadow: "0 4px 20px rgba(0,0,0,.15)", border: "1px solid var(--color-border)",
+      animation: "rcPop .2s ease both" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#EBF5FF",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <i className="fa-solid fa-circle-info" style={{ color: "#2774C1", fontSize: 16 }}></i>
+        </div>
+        <span style={{ flex: 1, fontSize: 15, color: "var(--color-text)", lineHeight: 1.45 }}>
+          Heads up: we loaded a different floor to show the list of available spaces.
+        </span>
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
+          color: "var(--gray-7)", fontSize: 16, padding: 0, marginTop: -2, flexShrink: 0 }}>
+          <i className="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+        <Btn type="secondary" onClick={onGoBack}>Go back</Btn>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Sidebar, TopBar, MapCanvas, Pill, FloorBanner });

@@ -1,5 +1,5 @@
 /* Event composer prototype — app shell, state, tweaks. */
-const { useState: useStateApp, useEffect: useEffectApp } = React;
+const { useState: useStateApp, useEffect: useEffectApp, useRef: useRefApp } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "entryPoint": "direct-url"
@@ -82,6 +82,45 @@ function SuccessPanel({ ev, mapMode, onDone }) {
   );
 }
 
+function DeskConfirmModal({ onCancel, onConfirm }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", zIndex: 200,
+      display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 360,
+        boxShadow: "var(--shadow-lg)", animation: "rcPop .18s ease both" }}>
+        <div style={{ fontSize: 16, fontWeight: 500, color: "var(--color-text)", marginBottom: 8 }}>
+          Are you sure?
+        </div>
+        <div style={{ fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.5, marginBottom: 24 }}>
+          This will close the event composer and open the desk details.
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Btn type="secondary" onClick={onCancel}>Cancel</Btn>
+          <Btn type="primary" onClick={onConfirm}>Ok</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeskDetailsPanel({ onClose }) {
+  return (
+    <div style={{ width: 420, flexShrink: 0, height: "100%", background: "#fff",
+      borderLeft: "1px solid var(--color-border)", display: "flex", flexDirection: "column",
+      boxShadow: "-8px 0 24px rgba(0,0,0,.06)" }}>
+      <div style={{ height: 56, display: "flex", alignItems: "center", gap: 12,
+        borderBottom: "1px solid var(--color-border-light)", flexShrink: 0, padding: "0 16px" }}>
+        <span style={{ fontSize: 16, fontWeight: 500, color: "var(--color-text)" }}>Desk details</span>
+        <div style={{ flex: 1 }} />
+        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer",
+          color: "var(--gray-7)", fontSize: 16 }}>
+          <i className="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const mapMode = true;
@@ -92,7 +131,8 @@ function App() {
     spaces: [], services: [], buffer: { on: false, before: 5, after: 5 },
     desc: "", isPrivate: false, repeatVal: "none", repeatEnds: "after", seriesOn: false, suggestion: null,
   });
-  const set = (patch) => setEv(prev => ({ ...prev, ...patch }));
+  const [isDirty, setIsDirty] = useStateApp(false);
+  const set = (patch) => { setIsDirty(true); setEv(prev => ({ ...prev, ...patch })); };
 
   const [open, setOpen] = useStateApp(true);
   const [picking, setPicking] = useStateApp(false);
@@ -100,6 +140,11 @@ function App() {
   const [success, setSuccess] = useStateApp(false);
   const [viewingSpace, setViewingSpace] = useStateApp(null);
   const [activeResource, setActiveResource] = useStateApp("spaces");
+  const [pendingDesk, setPendingDesk] = useStateApp(null);
+  const [deskDetailsOpen, setDeskDetailsOpen] = useStateApp(false);
+  const [activeFloor, setActiveFloor] = useStateApp(1);
+  const [floorBanner, setFloorBanner] = useStateApp({ visible: false, prevFloor: null });
+  const bannerTimerRef = useRefApp(null);
 
   useEffectApp(() => {
     const config = ENTRY_CONFIGS[t.entryPoint];
@@ -111,10 +156,53 @@ function App() {
     setSuccess(false);
     setViewingSpace(null);
     setActiveResource("spaces");
+    setIsDirty(false);
+    setPendingDesk(null);
+    setDeskDetailsOpen(false);
+    setActiveFloor(1);
+    setFloorBanner({ visible: false, prevFloor: null });
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
   }, [t.entryPoint]);
 
   // Map click → view space details
   const viewRoom = (room) => { setViewingSpace(room); setActiveResource("spaces"); };
+
+  // Desk click → confirm modal only if composer is open and has unsaved changes
+  const handlePickDesk = (desk) => {
+    if (open && isDirty) {
+      setPendingDesk(desk);
+    } else {
+      setViewingSpace(null);
+      setActiveResource(null);
+      setDeskDetailsOpen(true);
+    }
+  };
+
+  // Confirm desk: close composer, open desk details
+  const confirmDesk = () => {
+    setOpen(false);
+    setSuccess(false);
+    setViewingSpace(null);
+    setActiveResource(null);
+    setDeskDetailsOpen(true);
+    setPendingDesk(null);
+  };
+
+  // Space card click from list → open space details + switch floor if needed
+  const viewSpaceFromList = (room) => {
+    const targetFloor = FLOOR_DATA[2].rooms.some(r => r.id === room.id) ? 2 : 1;
+    if (targetFloor !== activeFloor) handleFloorChange(targetFloor);
+    setViewingSpace(room);
+  };
+
+  // Floor change from sider picker
+  const handleFloorChange = (newFloor) => {
+    if (newFloor === activeFloor) return;
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    setFloorBanner({ visible: true, prevFloor: activeFloor });
+    setActiveFloor(newFloor);
+    bannerTimerRef.current = setTimeout(() => setFloorBanner(prev => ({ ...prev, visible: false })), 4000);
+  };
 
   // Space details footer action (add or remove)
   const handleSpaceAction = () => {
@@ -127,6 +215,7 @@ function App() {
       setOpen(true);
     }
     setViewingSpace(null);
+    setPicking(false);
   };
 
   // SpacesList (inside composer) direct add/remove
@@ -137,11 +226,13 @@ function App() {
   };
   const reopen = () => {
     setSuccess(false); setOpen(true); setPicking(false); setFinding(false); setViewingSpace(null);
-    setActiveResource("spaces");
+    setActiveResource("spaces"); setIsDirty(false);
     setEv(prev => ({ ...prev, title: "", spaces: [], services: [], seriesOn: false, repeatVal: "none", suggestion: null }));
   };
 
-  const panel = viewingSpace ? (
+  const panel = deskDetailsOpen ? (
+    <DeskDetailsPanel onClose={() => setDeskDetailsOpen(false)} />
+  ) : viewingSpace ? (
     <SpaceDetailsPanel
       room={viewingSpace}
       alreadyAdded={ev.spaces.some(s => s.id === viewingSpace.id)}
@@ -155,7 +246,8 @@ function App() {
       : <Composer ev={ev} set={set} tweaks={t} picking={picking} setPicking={setPicking}
           finding={finding} setFinding={setFinding}
           mapMode={mapMode} onPickRoom={pickRoom}
-          onClose={() => { setOpen(false); setViewingSpace(null); setActiveResource(null); set({ spaces: [], services: [], buffer: { on: false, before: 5, after: 5 } }); }} onSubmit={() => { setSuccess(true); }} />
+          activeFloor={activeFloor} onFloorChange={handleFloorChange} onViewSpace={viewSpaceFromList}
+          onClose={() => { setOpen(false); setViewingSpace(null); setActiveResource(null); setIsDirty(false); set({ spaces: [], services: [], buffer: { on: false, before: 5, after: 5 } }); }} onSubmit={() => { setSuccess(true); }} />
   ) : null;
 
   return (
@@ -163,13 +255,13 @@ function App() {
       <Sidebar onCreate={() => {setSuccess(false);setOpen(true);}} />
       {/* main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TopBar onCreate={() => { setSuccess(false); setOpen(true); }} composerOpen={open} />
+        <TopBar onCreate={() => { setSuccess(false); setOpen(true); }} composerOpen={open} activeFloor={activeFloor} />
         <div style={{ flex: 1, position: "relative", minHeight: 0, display: "flex",
           justifyContent: mapMode ? "flex-start" : "center", alignItems: "center" }}>
           {/* canvas */}
           <div style={mapMode ? { flex: 1, position: "relative", minWidth: 0, alignSelf: "stretch" } : { position: "absolute", inset: 0 }}>
             {mapMode
-              ? <MapCanvas selectableRooms={picking} selectedRoomIds={ev.spaces.map(s => s.id)} onPickRoom={viewRoom} composerOpen={open || !!viewingSpace} activeResource={activeResource} onResourceChange={setActiveResource} eventStart={ev.start} eventEnd={ev.end} />
+              ? <MapCanvas selectableRooms={picking} selectedRoomIds={[...ev.spaces.map(s => s.id), ...(viewingSpace ? [viewingSpace.id] : [])]} onPickRoom={viewRoom} composerOpen={open || !!viewingSpace} activeResource={activeResource} onResourceChange={setActiveResource} eventStart={ev.start} eventEnd={ev.end} onPickDesk={handlePickDesk} activeFloor={activeFloor} />
               : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                   background: "radial-gradient(circle at 50% 0%, #fff, var(--color-bg-layout))" }}>
                   {!open && !success && (
@@ -180,6 +272,13 @@ function App() {
                   )}
                 </div>}
           </div>
+          {/* floor change banner */}
+          {floorBanner.visible && (
+            <FloorBanner
+              onClose={() => { clearTimeout(bannerTimerRef.current); setFloorBanner(prev => ({ ...prev, visible: false })); }}
+              onGoBack={() => { clearTimeout(bannerTimerRef.current); setActiveFloor(floorBanner.prevFloor); setFloorBanner({ visible: false, prevFloor: null }); }}
+            />
+          )}
           {/* standalone: composer floats centered inside the stage */}
           {!mapMode && panel && (
             <div style={{ display: "flex", alignItems: "center", flexShrink: 0, padding: "24px 32px", zIndex: 2, maxHeight: "100%" }}>
@@ -196,6 +295,8 @@ function App() {
             borderLeft: "1px solid var(--color-border)", boxShadow: "-8px 0 24px rgba(0,0,0,.06)" }} />}
         </div>
       )}
+
+      {pendingDesk && <DeskConfirmModal onCancel={() => setPendingDesk(null)} onConfirm={confirmDesk} />}
 
       {/* Tweaks */}
       <div style={{ position: "fixed", bottom: 16, left: 16, zIndex: 9999,

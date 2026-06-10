@@ -1,17 +1,18 @@
 /* The Create event composer drawer. Receives event state + setters + tweaks. */
-const { useState: useStateCo, useRef: useRefCo } = React;
+const { useState: useStateCo, useRef: useRefCo, useEffect: useEffectCo } = React;
 
 /* small helpers */
 function SectionGap() {return <div style={{ height: 1, background: "var(--color-border-light)", margin: "4px 0" }}></div>;}
+function SectionDivider() {return <div style={{ height: 1, background: "var(--color-border-light)", margin: "-5px -16px" }}></div>;}
 
 function AddRow({ icon, label, onClick }) {
   const [h, setH] = useStateCo(false);
   return (
     <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-    style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px", alignSelf: "flex-start",
-      border: "1px solid " + (h ? "var(--color-primary)" : "var(--color-border)"), borderRadius: 4, background: "#fff",
-      cursor: "pointer", color: h ? "var(--color-primary)" : "var(--color-text)", fontSize: 14, fontWeight: 500,
-      transition: "all .15s" }}>
+    style={{ display: "flex", alignItems: "center", gap: 8, height: 40, padding: "0 14px", width: "100%",
+      border: "1.5px dashed " + (h ? "var(--color-primary)" : "var(--color-border)"), borderRadius: 6, background: "#fff",
+      cursor: "pointer", color: h ? "var(--color-primary)" : "var(--color-text-secondary)", fontSize: 14, fontWeight: 500,
+      transition: "all .15s", fontFamily: "var(--font-sans)" }}>
       <i className={"fa-solid fa-" + icon} style={{ fontSize: 12 }}></i>{label}
     </button>);
 
@@ -34,8 +35,12 @@ function SparkleIcon() {
 function SuggestBtn({ variant, onClick, children, block, danger }) {
   const [h, setH] = useStateCo(false);
   const grad = variant === "gradient";
+  const dashed = variant === "dashed";
   const skin = grad ?
   { background: "linear-gradient(95deg, #BE1F77, #2774C1)", color: "#fff", border: "none", boxShadow: h ? "0 4px 14px rgba(120,40,150,.32)" : "none" } :
+  dashed ?
+  { background: "#fff", color: h ? "var(--color-primary)" : "var(--color-text-secondary)",
+    border: "1.5px dashed " + (h ? "var(--color-primary)" : "var(--color-border)") } :
   { background: "#fff", color: danger ? "var(--color-error)" : "var(--color-text)",
     border: "1px solid " + (h ? (danger ? "var(--color-error)" : "var(--color-primary)") : "var(--color-border)") };
   return (
@@ -76,66 +81,85 @@ function AvatarStack({ people, max = 3 }) {
 
 }
 
-/* People adder — collapsible container */
-function PeopleSection({ attendees, onAdd, onRemove, slot }) {
-  const [open, setOpen] = useStateCo(false); // search dropdown
-  const [expanded, setExpanded] = useStateCo(true); // container open/closed
+/* People adder — three states: dashed button → expanded → collapsed header */
+function PeopleSection({ attendees, onAdd, onRemove, slot, onTouch, defaultExpanded }) {
+  const [touched, setTouched] = useStateCo(defaultExpanded || false);
+  const [expanded, setExpanded] = useStateCo(true);
+  const [activatedByClick, setActivatedByClick] = useStateCo(false);
+  const [open, setOpen] = useStateCo(false);
   const [q, setQ] = useStateCo("");
   const added = new Set(attendees.map((a) => a.email));
   const avail = PEOPLE_POOL.filter((p) => !added.has(p.email) && p.name.toLowerCase().includes(q.toLowerCase()));
   const busyAt = (p) => !p.organizer && !!slot && (p.busy || []).some((b) => slot.start < b[1] && slot.end > b[0]);
+
+  useEffectCo(() => {
+    if (defaultExpanded && !touched) { setTouched(true); setExpanded(true); }
+  }, [defaultExpanded]);
+
+  const handleActivate = () => {
+    setTouched(true);
+    setExpanded(true);
+    setActivatedByClick(true);
+    onTouch && onTouch();
+  };
+
+  if (!touched) {
+    return <AddRow icon="plus" label="People" onClick={handleActivate} />;
+  }
+
   return (
     <div>
-      <FieldLabel>People</FieldLabel>
-      <div style={{ border: "1px solid var(--color-border)", borderRadius: 8, overflow: "hidden", background: "#fff" }}>
-        <button onClick={() => setExpanded(!expanded)}
-        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px",
-          background: "#fff", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)" }}>
-          <i className={"fa-solid fa-angle-" + (expanded ? "down" : "right")} style={{ color: "var(--gray-7)", fontSize: 13, width: 12, textAlign: "center" }}></i>
-          <span style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text)", flex: 1 }}>{attendees.length} {attendees.length === 1 ? "person" : "people"}</span>
-          <AvatarStack people={attendees} />
-        </button>
-        {expanded &&
-        <div style={{ borderTop: "1px solid var(--color-border-light)", padding: 12 }}>
-            <div style={{ position: "relative" }}>
-              <Input icon="magnifying-glass" placeholder="Add people" value={q}
-            onChange={setQ} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} />
-              {open && avail.length > 0 &&
-            <div style={{ position: "absolute", top: 40, left: 0, right: 0, zIndex: 30, background: "#fff",
-              border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "var(--shadow-md)", padding: 4,
-              maxHeight: 220, overflowY: "auto", animation: "rcPop .14s ease both" }}>
-                  {avail.map((p) =>
-              <div key={p.email} onMouseDown={() => {onAdd(p);setQ("");}}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 8px", borderRadius: 5, cursor: "pointer" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--gray-2)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                      <Avatar name={p.name} size={28} />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13.5, color: "var(--color-text)" }}>{p.name}</div>
-                        <div style={{ fontSize: 11.5, color: "var(--color-text-tertiary)" }}>{p.email}</div>
-                      </div>
+      <button onClick={() => setExpanded(!expanded)}
+        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "2px 0",
+          background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+        <i className={"fa-solid fa-angle-" + (expanded ? "down" : "right")}
+          style={{ color: "var(--gray-7)", fontSize: 13, width: 14, textAlign: "center" }}></i>
+        <span style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text)", flex: 1, textAlign: "left" }}>
+          {!expanded ? `People (${attendees.length})` : "People"}
+        </span>
+        {!expanded && <AvatarStack people={attendees} />}
+      </button>
+
+      {expanded && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ position: "relative" }}>
+            <Input icon="magnifying-glass" placeholder="Add people" value={q} autoFocus={activatedByClick}
+              onChange={setQ} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} />
+            {open && avail.length > 0 &&
+              <div style={{ position: "absolute", top: 40, left: 0, right: 0, zIndex: 30, background: "#fff",
+                border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "var(--shadow-md)", padding: 4,
+                maxHeight: 220, overflowY: "auto", animation: "rcPop .14s ease both" }}>
+                {avail.map((p) =>
+                  <div key={p.email} onMouseDown={() => {onAdd(p);setQ("");}}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 8px", borderRadius: 5, cursor: "pointer" }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--gray-2)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                    <Avatar name={p.name} size={28} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, color: "var(--color-text)" }}>{p.name}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--color-text-tertiary)" }}>{p.email}</div>
                     </div>
-              )}
-                </div>
-            }
-            </div>
-            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 2 }}>
-              {attendees.map((p, i) =>
-            <div key={p.email} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 4px" }}>
-                  <Avatar name={p.name} size={28} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, color: "var(--color-text)" }}>{p.name}</div>
-                    <div style={{ fontSize: 11.5, color: "var(--color-text-tertiary)" }}>{p.email}</div>
-                    {busyAt(p) && <div style={{ fontSize: 11.5, color: "var(--color-error)", fontWeight: 500 }}>Not available</div>}
                   </div>
-                  {p.organizer ? <span style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Organizer</span> :
-              <button onClick={() => onRemove(p)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--gray-6)", fontSize: 13 }}><i className="fa-solid fa-xmark"></i></button>}
-                </div>
-            )}
-            </div>
+                )}
+              </div>
+            }
           </div>
-        }
-      </div>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 2 }}>
+            {attendees.map((p) =>
+              <div key={p.email} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 4px" }}>
+                <Avatar name={p.name} size={28} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, color: "var(--color-text)" }}>{p.name}</div>
+                  <div style={{ fontSize: 11.5, color: "var(--color-text-tertiary)" }}>{p.email}</div>
+                  {busyAt(p) && <div style={{ fontSize: 11.5, color: "var(--color-error)", fontWeight: 500 }}>Not available</div>}
+                </div>
+                {p.organizer ? <span style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Organizer</span> :
+                  <button onClick={() => onRemove(p)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--gray-6)", fontSize: 13 }}><i className="fa-solid fa-xmark"></i></button>}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>);
 
 }
@@ -145,13 +169,17 @@ function roomBusyAt(room, start, end) {
   return (room.dayBusy || []).some(([s, e]) => start < e && end > s);
 }
 
-function SpaceCard({ room, isUnavailable, services, onToggleService, buffer, onSetBuffer, onChange, onRemove }) {
+function SpaceCard({ room, isUnavailable, services, onToggleService, buffer, onSetBuffer, onChange, onRemove, onView }) {
   const amenityIcon = { tv: "tv", video: "video", phone: "phone" };
   const [bufOpen, setBufOpen] = useStateCo(buffer.on);
   return (
     <div style={{ border: "1px solid " + (isUnavailable ? "var(--color-error)" : "var(--color-border)"), borderRadius: 12, overflow: "hidden" }}>
       <div style={{ padding: 16 }}>
-        <div style={{ display: "flex", gap: 14 }}>
+        <div onClick={onView}
+          onMouseEnter={e => { if (onView) e.currentTarget.style.background = "var(--gray-2)"; }}
+          onMouseLeave={e => { if (onView) e.currentTarget.style.background = "transparent"; }}
+          style={{ display: "flex", gap: 14, cursor: onView ? "pointer" : "default",
+            borderRadius: 8, margin: "-4px -4px 0", padding: "4px 4px 8px" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ color: "var(--color-text)", lineHeight: 1.15, fontSize: 16, fontWeight: 400 }}>{room.name}</div>
             <div style={{ fontSize: 13.5, color: "var(--color-text-tertiary)", marginTop: 4, marginBottom: 12 }}>{room.floor}, {room.building}</div>
@@ -218,8 +246,8 @@ function SpaceCard({ room, isUnavailable, services, onToggleService, buffer, onS
       }
       {/* actions */}
       <div style={{ borderTop: "1px solid var(--color-border-light)", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-        {!services.includes("coffee") && <SuggestBtn variant="outline" block onClick={() => onToggleService("coffee")}>Add service request</SuggestBtn>}
-        {!bufOpen && <SuggestBtn variant="outline" block onClick={() => {setBufOpen(true);onSetBuffer({ ...buffer, on: true });}}>Add buffer</SuggestBtn>}
+        {!services.includes("coffee") && <SuggestBtn variant="dashed" block onClick={() => onToggleService("coffee")}>Add service request</SuggestBtn>}
+        {!bufOpen && <SuggestBtn variant="dashed" block onClick={() => {setBufOpen(true);onSetBuffer({ ...buffer, on: true });}}>Add buffer</SuggestBtn>}
         <SuggestBtn variant="outline" block onClick={onChange}>Change space</SuggestBtn>
         <SuggestBtn variant="outline" block danger onClick={onRemove}>Remove space</SuggestBtn>
       </div>
@@ -274,18 +302,71 @@ function SuggestedSpaceCard({ room, onAdd, onBrowse }) {
 
 }
 
+function FloorPicker({ value, onChange }) {
+  const [open, setOpen] = useStateCo(false);
+  const floors = [{ value: 1, label: "Floor 1" }, { value: 2, label: "Floor 2" }];
+  const current = floors.find(f => f.value === value) || floors[0];
+  return (
+    <div style={{ position: "relative" }}>
+      <div onClick={() => setOpen(o => !o)} onBlur={() => setTimeout(() => setOpen(false), 150)} tabIndex={0}
+        style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px",
+          border: "1px solid var(--color-border)", borderRadius: 4, background: "#fff", cursor: "pointer",
+          fontSize: 14, fontWeight: 500, color: "var(--color-text)", whiteSpace: "nowrap", userSelect: "none" }}>
+        {current.label}
+        <i className="fa-solid fa-angle-down" style={{ color: "var(--gray-7)", fontSize: 11 }}></i>
+      </div>
+      {open && (
+        <div style={{ position: "absolute", top: 40, left: 0, background: "#fff",
+          border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "var(--shadow-md)",
+          zIndex: 50, padding: 4, minWidth: 120 }}>
+          {floors.map(f => (
+            <div key={f.value} onMouseDown={() => { onChange(f.value); setOpen(false); }}
+              style={{ padding: "8px 12px", borderRadius: 5, cursor: "pointer", fontSize: 14,
+                fontWeight: f.value === value ? 500 : 400,
+                color: f.value === value ? "var(--color-primary)" : "var(--color-text)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--gray-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              {f.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* Full Spaces panel — replaces the composer body when picking a space.
    Lists every bookable room on the map; "Add to event" returns to the composer. */
-function SpacesList({ onPick, selectedRoomIds = [] }) {
+function SpacesList({ onPick, selectedRoomIds = [], activeFloor = 1, onFloorChange, onViewSpace }) {
   const [q, setQ] = useStateCo("");
   const amenityIcon = { tv: "tv", video: "video", phone: "phone" };
-  const list = ROOMS.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+  const rooms = (FLOOR_DATA[activeFloor] || FLOOR_DATA[1]).rooms;
+  const list = rooms
+    .filter((r) => r.name.toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => {
+      const pri = r => selectedRoomIds.includes(r.id) ? 2 : !r.available ? 1 : 0;
+      return pri(a) - pri(b);
+    });
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px",
+          border: "1px solid var(--color-border)", borderRadius: 4, background: "#fff",
+          fontSize: 14, fontWeight: 500, color: "var(--color-text)", whiteSpace: "nowrap" }}>
+          <i className="fa-solid fa-building" style={{ color: "var(--gray-7)", fontSize: 13 }}></i>
+          54 State St.
+          <i className="fa-solid fa-angle-down" style={{ color: "var(--gray-7)", fontSize: 11 }}></i>
+        </div>
+        <FloorPicker value={activeFloor} onChange={onFloorChange} />
+      </div>
       <Input icon="magnifying-glass" placeholder="Search" value={q} onChange={setQ} />
       {list.map((r) =>
       <div key={r.id} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: 14, background: "#fff" }}>
-          <div style={{ display: "flex", gap: 12 }}>
+          <div onClick={() => onViewSpace && onViewSpace(r)}
+            onMouseEnter={e => { if (onViewSpace) e.currentTarget.style.background = "var(--gray-2)"; }}
+            onMouseLeave={e => { if (onViewSpace) e.currentTarget.style.background = "transparent"; }}
+            style={{ display: "flex", gap: 12, cursor: onViewSpace ? "pointer" : "default",
+              borderRadius: 6, margin: "-4px -4px 0", padding: "4px 4px 8px" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 15, fontWeight: 500, color: "var(--color-text)" }}>{r.name}</div>
               <div style={{ fontSize: 12.5, color: "var(--color-text-tertiary)", marginBottom: 8 }}>{r.floor}, {r.building}</div>
@@ -315,9 +396,9 @@ function SpacesList({ onPick, selectedRoomIds = [] }) {
         }
           <div style={{ marginTop: 12 }}>
             {r.available
-              ? <Btn type="secondary" block onClick={() => onPick(r)}>
-                  {r.requestOnly ? "Create request" : selectedRoomIds.includes(r.id) ? "Remove from event" : "Add to event"}
-                </Btn>
+              ? selectedRoomIds.includes(r.id)
+                ? <SuggestBtn variant="outline" block danger onClick={() => onPick(r)}>Remove from event</SuggestBtn>
+                : <Btn type="secondary" block onClick={() => onPick(r)}>{r.requestOnly ? "Create request" : "Add to event"}</Btn>
               : <Btn type="secondary" block disabled>Unavailable</Btn>}
           </div>
         </div>
@@ -411,12 +492,16 @@ function ConfirmCloseModal({ onCancel, onConfirm }) {
   );
 }
 
-function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, onClose, onSubmit, mapMode, onPickRoom }) {
+function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, onClose, onSubmit, mapMode, onPickRoom, activeFloor, onFloorChange, onViewSpace }) {
   const [moreOpen, setMoreOpen] = useStateCo(false);
   const [descOpen, setDescOpen] = useStateCo(false);
   const [videoOpen, setVideoOpen] = useStateCo(false);
   const [dismissSuggest, setDismissSuggest] = useStateCo(false);
   const [confirmClose, setConfirmClose] = useStateCo(false);
+  const [peopleTouched, setPeopleTouched] = useStateCo(() => ev.attendees.some(a => !a.organizer));
+  const [spaceExpanded, setSpaceExpanded] = useStateCo(true);
+  const spaceCount = ev.spaces ? ev.spaces.length : 0;
+  useEffectCo(() => { if (spaceCount === 0) setSpaceExpanded(true); }, [spaceCount]);
   const compact = tweaks.density === "compact";
   const floating = !mapMode;
 
@@ -429,6 +514,12 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
   const headerTitle = subview === "spaces" ? "Spaces" : subview === "find" ? "Find a time" : "Create event";
 
   const hasGuests = ev.attendees.filter((a) => !a.organizer).length > 0;
+  const hasSpace = ev.spaces && ev.spaces.length > 0;
+  const showPeopleDividerBelow = peopleTouched || hasGuests;
+  const showSpaceDividerAbove = hasSpace && !showPeopleDividerBelow;
+  const showSpaceDividerBelow = hasSpace;
+  const showDescDividerAbove = descOpen && !showSpaceDividerBelow;
+  const showDescDividerBelow = descOpen;
   const openFind = () => {setPicking(false);setFinding(true);};
   const inlineSuggest = ev.spaces && ev.spaces.length > 0
     ? <InlineTimeSuggestions attendees={ev.attendees} space={ev.spaces[0]} duration={dur} anchor={ev.start}
@@ -459,7 +550,7 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
       </div>
 
       {subview === "spaces" ?
-      <SpacesList selectedRoomIds={(ev.spaces || []).map(s => s.id)} onPick={(r) => onPickRoom(r)} /> :
+      <SpacesList selectedRoomIds={(ev.spaces || []).map(s => s.id)} onPick={(r) => onPickRoom(r)} activeFloor={activeFloor} onFloorChange={onFloorChange} onViewSpace={onViewSpace} /> :
       subview === "find" ?
       <FindTimePanel attendees={ev.attendees} space={ev.spaces && ev.spaces[0]} duration={dur} dateLabel="Mon, Nov 2"
       onPick={(s) => {set({ start: s.start, end: s.end });setFinding(false);}} /> :
@@ -513,51 +604,68 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
               <RepeatDropdown value={ev.repeatVal} onChange={(v) => set({ repeatVal: v })} ends={ev.repeatEnds} onEnds={(e) => set({ repeatEnds: e })} />}
             </div>
             }
-
+          {inlineSuggest && <div style={{ marginTop: 8 }}>{inlineSuggest}</div>}
         </div>
+
+        <SectionDivider />
 
         {/* people */}
         <div>
           <PeopleSection attendees={ev.attendees} slot={{ start: ev.start, end: ev.end }}
+            defaultExpanded={ev.attendees.some(a => !a.organizer)}
+            onTouch={() => setPeopleTouched(true)}
             onAdd={(p) => set({ attendees: [...ev.attendees, p] })}
             onRemove={(p) => set({ attendees: ev.attendees.filter((a) => a.email !== p.email) })} />
         </div>
 
+        {showPeopleDividerBelow && <SectionDivider />}
+
         {/* space */}
+        {showSpaceDividerAbove && <SectionDivider />}
         <div>
           {ev.spaces && ev.spaces.length > 0 ?
             <React.Fragment>
-              <FieldLabel>Space</FieldLabel>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {ev.spaces.map(space => (
-                  <SpaceCard key={space.id} room={space} isUnavailable={roomBusyAt(space, ev.start, ev.end)} services={ev.services} buffer={ev.buffer}
-                  onToggleService={(s) => set({ services: ev.services.includes(s) ? ev.services.filter((x) => x !== s) : [...ev.services, s] })}
-                  onSetBuffer={(b) => set({ buffer: b })}
-                  onChange={() => setPicking(true)}
-                  onRemove={() => {
-                    const next = ev.spaces.filter(s => s.id !== space.id);
-                    set({ spaces: next, ...(next.length === 0 ? { services: [], buffer: { on: false, before: 5, after: 5 } } : {}) });
-                  }} />
-                ))}
-                <AddRow icon="plus" label="Add another space" onClick={() => setPicking(true)} />
-              </div>
+              <button onClick={() => setSpaceExpanded(!spaceExpanded)}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "2px 0",
+                  background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                <i className={"fa-solid fa-angle-" + (spaceExpanded ? "down" : "right")}
+                  style={{ color: "var(--gray-7)", fontSize: 13, width: 14, textAlign: "center" }}></i>
+                <span style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text)", flex: 1, textAlign: "left" }}>
+                  {spaceExpanded ? "Space" : `Space (${ev.spaces.length})`}
+                </span>
+              </button>
+              {!spaceExpanded && ev.spaces.map(s =>
+                <div key={s.id} style={{ fontSize: 13.5, color: "var(--color-text-secondary)", paddingLeft: 22, marginTop: 3 }}>{s.name}</div>
+              )}
+              {spaceExpanded && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                  {ev.spaces.map(space => (
+                    <SpaceCard key={space.id} room={space} isUnavailable={roomBusyAt(space, ev.start, ev.end)} services={ev.services} buffer={ev.buffer}
+                      onToggleService={(s) => set({ services: ev.services.includes(s) ? ev.services.filter((x) => x !== s) : [...ev.services, s] })}
+                      onSetBuffer={(b) => set({ buffer: b })}
+                      onChange={() => setPicking(true)}
+                      onView={onViewSpace ? () => onViewSpace(space) : undefined}
+                      onRemove={() => {
+                        const next = ev.spaces.filter(s => s.id !== space.id);
+                        set({ spaces: next, ...(next.length === 0 ? { services: [], buffer: { on: false, before: 5, after: 5 } } : {}) });
+                        if (next.length === 0) setSpaceExpanded(true);
+                      }} />
+                  ))}
+                  <AddRow icon="plus" label="Add another space" onClick={() => setPicking(true)} />
+                </div>
+              )}
             </React.Fragment> :
             suggestedSpace ?
             <SuggestedSpaceCard room={suggestedSpace}
             onAdd={() => set({ spaces: [suggestedSpace] })}
             onBrowse={() => setPicking(true)} /> :
-
-            <React.Fragment>
-              <FieldLabel>Space</FieldLabel>
-              <AddRow icon="plus" label="Add space" onClick={() => setPicking(true)} />
-            </React.Fragment>
-            }
+            <AddRow icon="plus" label="Add space" onClick={() => setPicking(true)} />
+          }
         </div>
-
-        {/* find a time — shown whenever a space is added */}
-        {inlineSuggest}
+        {showSpaceDividerBelow && <SectionDivider />}
 
         {/* description */}
+        {showDescDividerAbove && <SectionDivider />}
         <div>
           {descOpen ?
             <div>
@@ -575,6 +683,7 @@ function Composer({ ev, set, tweaks, picking, setPicking, finding, setFinding, o
               </div> :
             <AddRow icon="plus" label="Add description" onClick={() => setDescOpen(true)} />}
         </div>
+        {showDescDividerBelow && <SectionDivider />}
 
         {/* video conference */}
         <div>
