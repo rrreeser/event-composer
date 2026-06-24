@@ -211,12 +211,14 @@ function SuggestedSpaceCard({ room, onAdd, onBrowse }) {
 }
 
 /* Full Spaces panel — replaces the composer body when picking a space. */
-function SpacesList({ onPick, selectedRoomIds = [], activeFloor, setActiveFloor, activeBuilding }) {
+function SpacesList({ onPick, selectedRoomIds = [], activeFloor, setActiveFloor, activeBuilding, spaceFilters }) {
   const [q, setQ] = useStateCo("");
   const amenityIcon = { tv: "tv", video: "video", phone: "phone" };
   const floors = ["Floor 1", "Floor 2"];
   const floorRooms = ROOMS.filter(r => r.floor === activeFloor);
-  const list = floorRooms.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
+  const list = floorRooms
+    .filter((r) => r.name.toLowerCase().includes(q.toLowerCase()))
+    .filter((r) => matchesSpaceFilters(r, spaceFilters));
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", gap: 8 }}>
@@ -376,7 +378,7 @@ function ConfirmCloseModal({ onCancel, onConfirm }) {
   );
 }
 
-function Composer({ ev, set: rawSet, tweaks, picking, setPicking, finding, setFinding, onClose, onSubmit, mapMode, onPickRoom, activeFloor, setActiveFloor, activeBuilding, dirty, onDirty }) {
+function Composer({ ev, set: rawSet, tweaks, picking, setPicking, finding, setFinding, onClose, onSubmit, mapMode, onPickRoom, activeFloor, setActiveFloor, activeBuilding, dirty, onDirty, spaceFilters, onSpaceFilterChange }) {
   const [moreOpen, setMoreOpen] = useStateCo(false);
   const [descOpen, setDescOpen] = useStateCo(false);
   const [videoOpen, setVideoOpen] = useStateCo(false);
@@ -460,7 +462,8 @@ function Composer({ ev, set: rawSet, tweaks, picking, setPicking, finding, setFi
 
       {subview === "spaces" ?
         <SpacesList selectedRoomIds={(ev.spaces || []).map(s => s.id)} onPick={(r) => onPickRoom(r)}
-          activeFloor={activeFloor} setActiveFloor={setActiveFloor} activeBuilding={activeBuilding} /> :
+          activeFloor={activeFloor} setActiveFloor={setActiveFloor} activeBuilding={activeBuilding}
+          spaceFilters={spaceFilters} /> :
       subview === "find" ?
         <FindTimePanel attendees={ev.attendees} space={ev.spaces && ev.spaces[0]} duration={dur} dateLabel="Mon, Nov 2"
           onPick={(s) => { set({ start: s.start, end: s.end }); setFinding(false); }} /> :

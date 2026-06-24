@@ -22,64 +22,64 @@ const PEOPLE_POOL = [
    `available` drives the green (free) vs grey (booked/unavailable) treatment. */
 const ROOMS = [
   // Left column (top → bottom)
-  { id: "mission",  name: "Mission Control", floor: "Floor 1", building: "Boston HQ", cap: 14, available: true,
+  { id: "mission",  name: "Mission Control", floor: "Floor 1", building: "Boston HQ", cap: 14, available: true, type: "Meeting room",
     amenities: ["tv", "video", "phone"], extra: 3, rx: 2, ry: 3, rw: 15, rh: 28,
     // bookings per weekday occurrence (used by recurring series health)
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[13, 14]] },
-  { id: "echo",     name: "Echo Chamber",    floor: "Floor 1", building: "Boston HQ", cap: 6,  available: true,
+  { id: "echo",     name: "Echo Chamber",    floor: "Floor 1", building: "Boston HQ", cap: 6,  available: true, type: "Meeting room",
     amenities: ["tv", "video"], extra: 1, rx: 2, ry: 33, rw: 15, rh: 28,
     series: [1,1,1,1,0,1,1,1,1,1,1,1], dayBusy: [[10, 11]] },
-  { id: "falcon",   name: "Millenium Falcon",floor: "Floor 1", building: "Boston HQ", cap: 10, available: true,
+  { id: "falcon",   name: "Millenium Falcon",floor: "Floor 1", building: "Boston HQ", cap: 10, available: true, type: "Lounge",
     amenities: ["tv", "video", "phone"], extra: 2, rx: 2, ry: 63, rw: 15, rh: 34,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[15, 16]] },
   // Top edge (left → right)
-  { id: "mandalore",name: "Mandalore",       floor: "Floor 1", building: "Boston HQ", cap: 8,  available: false,
+  { id: "mandalore",name: "Mandalore",       floor: "Floor 1", building: "Boston HQ", cap: 8,  available: false, type: "Meeting room",
     amenities: ["tv", "video"], extra: 1, rx: 19, ry: 3, rw: 20, rh: 17,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[9, 17]] },
-  { id: "starship", name: "Starship",        floor: "Floor 1", building: "Boston HQ", cap: 12, available: true,
+  { id: "starship", name: "Starship",        floor: "Floor 1", building: "Boston HQ", cap: 12, available: true, type: "Meeting room",
     amenities: ["tv", "video", "phone"], extra: 2, rx: 41, ry: 3, rw: 19, rh: 17,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[11, 12]] },
-  { id: "mercury",  name: "Mercury",         floor: "Floor 1", building: "Boston HQ", cap: 4,  available: true,
+  { id: "mercury",  name: "Mercury",         floor: "Floor 1", building: "Boston HQ", cap: 4,  available: true, type: "Focus room",
     amenities: ["tv"], extra: 0, rx: 62, ry: 3, rw: 19, rh: 17,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [] },
   // Right column (top → bottom)
-  { id: "hoth",     name: "Hoth",            floor: "Floor 1", building: "Boston HQ", cap: 8,  available: false,
+  { id: "hoth",     name: "Hoth",            floor: "Floor 1", building: "Boston HQ", cap: 8,  available: false, type: "Meeting room",
     amenities: ["tv", "video"], extra: 1, rx: 83, ry: 3, rw: 15, rh: 28,
     series: [0,1,1,0,1,1,0,1,1,0,1,1], dayBusy: [[8, 18]] },
-  { id: "alderaan", name: "Alderaan",        floor: "Floor 1", building: "Boston HQ", cap: 6,  available: true,
+  { id: "alderaan", name: "Alderaan",        floor: "Floor 1", building: "Boston HQ", cap: 6,  available: true, type: "Focus room",
     amenities: ["tv", "video"], extra: 1, rx: 83, ry: 33, rw: 15, rh: 28,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[14, 15]] },
-  { id: "solaris",  name: "Solaris",         floor: "Floor 1", building: "Boston HQ", cap: 8,  available: true,
+  { id: "solaris",  name: "Solaris",         floor: "Floor 1", building: "Boston HQ", cap: 8,  available: true, type: "Meeting room",
     amenities: ["tv", "video"], extra: 1, rx: 83, ry: 63, rw: 15, rh: 34,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[11, 12.5]] },
   // Bottom edge
-  { id: "whiskey",  name: "Whiskey Lounge",  floor: "Floor 1", building: "Boston HQ", cap: 12, available: true,
+  { id: "whiskey",  name: "Whiskey Lounge",  floor: "Floor 1", building: "Boston HQ", cap: 12, available: true, type: "Event space",
     amenities: ["tv", "video", "phone"], extra: 2, rx: 30, ry: 80, rw: 40, rh: 17, requestOnly: true,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[15, 16]] },
   // ── Floor 2 ──
   // Left column
-  { id: "nebula",   name: "Nebula",          floor: "Floor 2", building: "Boston HQ", cap: 12, available: true,
+  { id: "nebula",   name: "Nebula",          floor: "Floor 2", building: "Boston HQ", cap: 12, available: true, type: "Meeting room",
     amenities: ["tv", "video", "phone"], extra: 1, rx: 2, ry: 3, rw: 15, rh: 62,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[10, 11.5]] },
-  { id: "aurora",   name: "Aurora",          floor: "Floor 2", building: "Boston HQ", cap: 6,  available: true,
+  { id: "aurora",   name: "Aurora",          floor: "Floor 2", building: "Boston HQ", cap: 6,  available: true, type: "Focus room",
     amenities: ["tv", "video"], extra: 0, rx: 2, ry: 67, rw: 15, rh: 30,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [] },
   // Top strip
-  { id: "cosmos",   name: "Cosmos",          floor: "Floor 2", building: "Boston HQ", cap: 8,  available: false,
+  { id: "cosmos",   name: "Cosmos",          floor: "Floor 2", building: "Boston HQ", cap: 8,  available: false, type: "Meeting room",
     amenities: ["tv", "video"], extra: 1, rx: 19, ry: 3, rw: 30, rh: 18,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[9, 17]] },
-  { id: "quasar",   name: "Quasar",          floor: "Floor 2", building: "Boston HQ", cap: 4,  available: true,
+  { id: "quasar",   name: "Quasar",          floor: "Floor 2", building: "Boston HQ", cap: 4,  available: true, type: "Focus room",
     amenities: ["tv"], extra: 0, rx: 51, ry: 3, rw: 30, rh: 18,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [] },
   // Right column
-  { id: "nova",     name: "Nova",            floor: "Floor 2", building: "Boston HQ", cap: 10, available: true,
+  { id: "nova",     name: "Nova",            floor: "Floor 2", building: "Boston HQ", cap: 10, available: true, type: "Meeting room",
     amenities: ["tv", "video", "phone"], extra: 2, rx: 83, ry: 3, rw: 15, rh: 44,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[14, 15]] },
-  { id: "pulsar",   name: "Pulsar",          floor: "Floor 2", building: "Boston HQ", cap: 8,  available: true,
+  { id: "pulsar",   name: "Pulsar",          floor: "Floor 2", building: "Boston HQ", cap: 8,  available: true, type: "Lounge",
     amenities: ["tv", "video"], extra: 1, rx: 83, ry: 49, rw: 15, rh: 48,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[11, 12]] },
   // Bottom strip
-  { id: "thehub",   name: "The Hub",         floor: "Floor 2", building: "Boston HQ", cap: 20, available: true,
+  { id: "thehub",   name: "The Hub",         floor: "Floor 2", building: "Boston HQ", cap: 20, available: true, type: "Event space",
     amenities: ["tv", "video", "phone"], extra: 3, rx: 19, ry: 79, rw: 62, rh: 18, requestOnly: true,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [] },
 ];
@@ -177,4 +177,17 @@ function fmtTimeShort(h) {
   return h12 + (m ? ":" + String(m).padStart(2, "0") : "") + ap;
 }
 
-Object.assign(window, { ORGANIZER, PEOPLE_POOL, ROOMS, DESKS, DESKS_F2, SERVICES, buildSuggestions, HOURS, fmtTime, fmtTimeShort });
+function matchesSpaceFilters(room, filters) {
+  if (!filters) return true;
+  if (filters.type && room.type !== filters.type) return false;
+  if (filters.amenity && !(room.amenities || []).includes(filters.amenity)) return false;
+  if (filters.capacity) {
+    if (filters.capacity === "small"  && room.cap > 4)  return false;
+    if (filters.capacity === "medium" && (room.cap < 5  || room.cap > 8))  return false;
+    if (filters.capacity === "large"  && (room.cap < 9  || room.cap > 14)) return false;
+    if (filters.capacity === "xlarge" && room.cap < 15) return false;
+  }
+  return true;
+}
+
+Object.assign(window, { ORGANIZER, PEOPLE_POOL, ROOMS, DESKS, DESKS_F2, SERVICES, buildSuggestions, HOURS, fmtTime, fmtTimeShort, matchesSpaceFilters });

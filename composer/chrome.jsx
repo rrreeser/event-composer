@@ -137,8 +137,75 @@ function TopBar({ onCreate, composerOpen, activeFloor, setActiveFloor, activeBui
   );
 }
 
+const SPACE_TYPE_OPTIONS = [
+  { value: "Meeting room", label: "Meeting room" },
+  { value: "Focus room",   label: "Focus room" },
+  { value: "Lounge",       label: "Lounge" },
+  { value: "Event space",  label: "Event space" },
+];
+const AMENITY_OPTIONS = [
+  { value: "tv",    label: "TV" },
+  { value: "video", label: "Video conferencing" },
+  { value: "phone", label: "Phone" },
+];
+const CAPACITY_OPTIONS = [
+  { value: "small",  label: "1–4 people" },
+  { value: "medium", label: "5–8 people" },
+  { value: "large",  label: "9–14 people" },
+  { value: "xlarge", label: "15+ people" },
+];
+
+function SpaceFilterDropdown({ label, options, value, onChange }) {
+  const [open, setOpen] = useStateCh(false);
+  const active = !!value;
+  const activeLabel = active ? (options.find(o => o.value === value) || {}).label : null;
+  return (
+    <div style={{ position: "relative" }}>
+      <div onClick={() => setOpen(o => !o)}
+        style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 34, padding: "0 10px",
+          background: active ? "#1c1c1c" : "#fff",
+          color: active ? "#fff" : "var(--color-text)",
+          border: "1px solid " + (active ? "#1c1c1c" : "var(--color-border)"),
+          borderRadius: 4, cursor: "pointer", fontSize: 13, fontWeight: 500,
+          userSelect: "none", whiteSpace: "nowrap", transition: "all .15s" }}>
+        <span>{activeLabel || label}</span>
+        {active ? (
+          <span onClick={e => { e.stopPropagation(); onChange(null); setOpen(false); }}
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: 16, height: 16, borderRadius: "50%", background: "rgba(255,255,255,.22)",
+              fontSize: 12, cursor: "pointer", marginLeft: 2, lineHeight: 1 }}>×</span>
+        ) : (
+          <i className="fa-solid fa-angle-down" style={{ fontSize: 10, color: "var(--gray-7)",
+            transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}></i>
+        )}
+      </div>
+      {open && <>
+        <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+        <div style={{ position: "absolute", top: 38, left: 0, zIndex: 50, background: "#fff",
+          border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "var(--shadow-md)",
+          padding: 4, minWidth: 170, animation: "rcPop .12s ease both" }}>
+          {options.map(opt => (
+            <div key={opt.value} onClick={() => { onChange(opt.value); setOpen(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+                borderRadius: 5, cursor: "pointer", fontSize: 13,
+                color: opt.value === value ? "var(--color-primary)" : "var(--color-text)",
+                fontWeight: opt.value === value ? 500 : 400 }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--gray-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <i className="fa-solid fa-check" style={{ fontSize: 11, color: "var(--color-primary)",
+                visibility: opt.value === value ? "visible" : "hidden" }}></i>
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      </>}
+    </div>
+  );
+}
+
 /* Filter overlay: resource chips + inline space filter controls */
-function MapFilters({ composerOpen, activeResource, onResourceChange }) {
+function MapFilters({ composerOpen, activeResource, onResourceChange, spaceFilters, onSpaceFilterChange }) {
+  const sf = spaceFilters || { type: null, amenity: null, capacity: null };
   const chipStyle = (active) => ({
     display: "inline-flex", alignItems: "center", height: 34, padding: "0 14px",
     background: active ? "#1c1c1c" : "#fff",
@@ -148,24 +215,25 @@ function MapFilters({ composerOpen, activeResource, onResourceChange }) {
     fontSize: 13, fontWeight: 500,
     transition: "background .15s, color .15s, border-color .15s",
   });
-  const spaceDropdowns = ["Space type", "Amenities", "Capacity"].map(f => (
-    <div key={f} style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 34, padding: "0 12px",
-      background: "#fff", border: "1px solid var(--color-border)", borderRadius: 4,
-      fontSize: 13, color: "var(--color-text)", cursor: "pointer" }}>
-      {f} <i className="fa-solid fa-angle-down" style={{ fontSize: 10, color: "var(--gray-7)" }}></i>
-    </div>
-  ));
+  const spaceDropdowns = (
+    <>
+      <SpaceFilterDropdown label="Space type" options={SPACE_TYPE_OPTIONS}
+        value={sf.type} onChange={v => onSpaceFilterChange("type", v)} />
+      <SpaceFilterDropdown label="Amenities" options={AMENITY_OPTIONS}
+        value={sf.amenity} onChange={v => onSpaceFilterChange("amenity", v)} />
+      <SpaceFilterDropdown label="Capacity" options={CAPACITY_OPTIONS}
+        value={sf.capacity} onChange={v => onSpaceFilterChange("capacity", v)} />
+    </>
+  );
 
   return (
     <div style={{ position: "absolute", top: 16, left: 16, display: "flex", gap: 8, zIndex: 3 }}>
       {composerOpen ? (
-        /* Composer open: only Spaces chip (locked) + dropdowns inline */
         <>
           <div style={chipStyle(true)}>Spaces</div>
           {spaceDropdowns}
         </>
       ) : activeResource ? (
-        /* Chip selected: show only that chip + (for spaces) dropdowns inline */
         <>
           <div onClick={() => onResourceChange(null)} style={chipStyle(true)}>
             {activeResource.charAt(0).toUpperCase() + activeResource.slice(1)}
@@ -173,7 +241,6 @@ function MapFilters({ composerOpen, activeResource, onResourceChange }) {
           {activeResource === "spaces" && spaceDropdowns}
         </>
       ) : (
-        /* No selection: show all three chips */
         ["Desks", "Spaces", "Lockers"].map(r => (
           <div key={r} onClick={() => onResourceChange(r.toLowerCase())} style={chipStyle(false)}>{r}</div>
         ))
@@ -184,14 +251,16 @@ function MapFilters({ composerOpen, activeResource, onResourceChange }) {
 
 /* The schematic floor map: rooms as rectangles around the perimeter,
    desks clustered into pods in the open center. Green = available, grey = booked. */
-function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, onPickDesk, composerOpen, activeResource, onResourceChange, eventStart, eventEnd, activeFloor }) {
+function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, onPickDesk, composerOpen, activeResource, onResourceChange, eventStart, eventEnd, activeFloor, spaceFilters, onSpaceFilterChange }) {
   const roomsDimmed = activeResource === "desks" || activeResource === "lockers";
   const desksDimmed = composerOpen || activeResource === "spaces" || activeResource === "lockers";
   const floorRooms = ROOMS.filter(r => r.floor === activeFloor);
   const floorDesks = activeFloor === "Floor 2" ? DESKS_F2 : DESKS;
+  const hasFilter = spaceFilters && (spaceFilters.type || spaceFilters.amenity || spaceFilters.capacity);
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#D5D9DF" }}>
-      <MapFilters composerOpen={composerOpen} activeResource={activeResource} onResourceChange={onResourceChange} />
+      <MapFilters composerOpen={composerOpen} activeResource={activeResource} onResourceChange={onResourceChange}
+        spaceFilters={spaceFilters} onSpaceFilterChange={onSpaceFilterChange} />
       <MapLegend />
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "72px 32px 32px" }}>
         <div style={{ position: "relative", width: "min(100%, 1060px)", aspectRatio: "3 / 2",
@@ -200,12 +269,15 @@ function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, onPickDe
           <div style={{ position: "absolute", left: "18%", top: "21%", width: "64%", height: "59%",
             background: "#FAFBFC", border: "1px dashed #E2E5E9", borderRadius: 6 }}></div>
           {floorDesks.map(d => <Desk key={d.id} d={d} dimmed={desksDimmed} onClick={() => onPickDesk && onPickDesk(d)} />)}
-          {floorRooms.map(r => (
+          {floorRooms.map(r => {
+            const filterDimmed = hasFilter && !matchesSpaceFilters(r, spaceFilters);
+            return (
             <RoomRect key={r.id} room={r} selectable={selectableRooms}
-              selected={selectedRoomIds.includes(r.id)} dimmed={roomsDimmed}
+              selected={selectedRoomIds.includes(r.id)} dimmed={roomsDimmed || filterDimmed}
               eventStart={eventStart} eventEnd={eventEnd}
               onClick={() => onPickRoom(r)} />
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

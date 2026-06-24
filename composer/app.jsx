@@ -105,6 +105,8 @@ function App() {
   const [composerDirty, setComposerDirty] = useStateApp(false);
   const [viewingDesk, setViewingDesk] = useStateApp(null);
   const [pendingDesk, setPendingDesk] = useStateApp(null);
+  const [spaceFilters, setSpaceFilters] = useStateApp({ type: null, amenity: null, capacity: null });
+  const setSpaceFilter = (key, val) => setSpaceFilters(prev => ({ ...prev, [key]: val }));
 
   useEffectApp(() => {
     const config = ENTRY_CONFIGS[t.entryPoint];
@@ -119,6 +121,7 @@ function App() {
     setViewingDesk(null);
     setPendingDesk(null);
     setActiveResource(null);
+    setSpaceFilters({ type: null, amenity: null, capacity: null });
   }, [t.entryPoint]);
 
   // Map click → view space details
@@ -186,6 +189,7 @@ function App() {
           mapMode={mapMode} onPickRoom={pickRoom}
           activeFloor={activeFloor} setActiveFloor={setActiveFloor} activeBuilding={activeBuilding}
           dirty={composerDirty} onDirty={() => setComposerDirty(true)}
+          spaceFilters={spaceFilters} onSpaceFilterChange={setSpaceFilter}
           onClose={() => { setOpen(false); setComposerDirty(false); setViewingSpace(null); setActiveResource(null); set({ spaces: [], services: [], buffer: { on: false, before: 5, after: 5 } }); }}
           onSubmit={() => { setSuccess(true); }} />
   ) : null;
@@ -202,7 +206,7 @@ function App() {
           {/* canvas */}
           <div style={mapMode ? { flex: 1, position: "relative", minWidth: 0, alignSelf: "stretch" } : { position: "absolute", inset: 0 }}>
             {mapMode
-              ? <MapCanvas selectableRooms={picking} selectedRoomIds={ev.spaces.map(s => s.id)} onPickRoom={viewRoom} onPickDesk={handleDeskClick} composerOpen={open} activeResource={activeResource} onResourceChange={setActiveResource} eventStart={ev.start} eventEnd={ev.end} activeFloor={activeFloor} />
+              ? <MapCanvas selectableRooms={picking} selectedRoomIds={ev.spaces.map(s => s.id)} onPickRoom={viewRoom} onPickDesk={handleDeskClick} composerOpen={open} activeResource={activeResource} onResourceChange={setActiveResource} eventStart={ev.start} eventEnd={ev.end} activeFloor={activeFloor} spaceFilters={spaceFilters} onSpaceFilterChange={setSpaceFilter} />
               : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                   background: "radial-gradient(circle at 50% 0%, #fff, var(--color-bg-layout))" }}>
                   {!open && !success && (
