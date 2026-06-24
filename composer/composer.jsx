@@ -343,7 +343,7 @@ function DeskDetailsPanel({ desk, onBack }) {
         <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
           <div style={{ width: 44, height: 44, borderRadius: 10, background: "linear-gradient(135deg,#3a3f4a,#21252d)",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <i className="fa-solid fa-chair-office" style={{ color: "rgba(255,255,255,.55)", fontSize: 18 }}></i>
+            <i className="fa-solid fa-chair" style={{ color: "rgba(255,255,255,.55)", fontSize: 18 }}></i>
           </div>
           <div>
             <div style={{ fontSize: 18, fontWeight: 600, color: "var(--color-text)", lineHeight: 1.2 }}>{desk.name}</div>

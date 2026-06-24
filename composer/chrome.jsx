@@ -275,7 +275,7 @@ function MapLegend() {
 }
 
 const TIFFANY_BOOKINGS = [
-  { type: "desk",   icon: "chair-office", name: "Desk 12A",        floor: "Floor 1", start: 9,    end: 17 },
+  { type: "desk",   icon: "chair",        name: "Desk 12A",        floor: "Floor 1", start: 9,    end: 17 },
   { type: "space",  icon: "door-open",    name: "Echo Chamber",    floor: "Floor 1", start: 10,   end: 11 },
   { type: "locker", icon: "lock",         name: "Locker 4B",       floor: "Floor 2", start: null, end: null },
 ];
