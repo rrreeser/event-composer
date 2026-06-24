@@ -254,10 +254,10 @@ function FindTimePanel({ attendees, space, duration, dateLabel, onPick }) {
 
 /* Suggest a space: the tightest-fitting room that is free during the slot and
    not request-only — fits the headcount with minimal wasted capacity. */
-function suggestSpace(attendees, start, end) {
+function suggestSpace(attendees, start, end, floor = "Floor 1") {
   const n = attendees.length; // organizer is always counted
   const free = (r) => !(r.dayBusy || []).some((b) => start < b[1] && end > b[0]);
-  const open = ROOMS.filter((r) => !r.requestOnly && free(r));
+  const open = ROOMS.filter((r) => !r.requestOnly && free(r) && r.floor === floor);
   const fits = open.filter((r) => r.cap >= n).sort((a, b) => a.cap - b.cap || b.amenities.length - a.amenities.length);
   if (fits.length) return fits[0];
   // nobody fits the headcount — fall back to the largest open room

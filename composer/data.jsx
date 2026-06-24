@@ -56,6 +56,32 @@ const ROOMS = [
   { id: "whiskey",  name: "Whiskey Lounge",  floor: "Floor 1", building: "Boston HQ", cap: 12, available: true,
     amenities: ["tv", "video", "phone"], extra: 2, rx: 30, ry: 80, rw: 40, rh: 17, requestOnly: true,
     series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[15, 16]] },
+  // ── Floor 2 ──
+  // Left column
+  { id: "nebula",   name: "Nebula",          floor: "Floor 2", building: "Boston HQ", cap: 12, available: true,
+    amenities: ["tv", "video", "phone"], extra: 1, rx: 2, ry: 3, rw: 15, rh: 62,
+    series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[10, 11.5]] },
+  { id: "aurora",   name: "Aurora",          floor: "Floor 2", building: "Boston HQ", cap: 6,  available: true,
+    amenities: ["tv", "video"], extra: 0, rx: 2, ry: 67, rw: 15, rh: 30,
+    series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [] },
+  // Top strip
+  { id: "cosmos",   name: "Cosmos",          floor: "Floor 2", building: "Boston HQ", cap: 8,  available: false,
+    amenities: ["tv", "video"], extra: 1, rx: 19, ry: 3, rw: 30, rh: 18,
+    series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[9, 17]] },
+  { id: "quasar",   name: "Quasar",          floor: "Floor 2", building: "Boston HQ", cap: 4,  available: true,
+    amenities: ["tv"], extra: 0, rx: 51, ry: 3, rw: 30, rh: 18,
+    series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [] },
+  // Right column
+  { id: "nova",     name: "Nova",            floor: "Floor 2", building: "Boston HQ", cap: 10, available: true,
+    amenities: ["tv", "video", "phone"], extra: 2, rx: 83, ry: 3, rw: 15, rh: 44,
+    series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[14, 15]] },
+  { id: "pulsar",   name: "Pulsar",          floor: "Floor 2", building: "Boston HQ", cap: 8,  available: true,
+    amenities: ["tv", "video"], extra: 1, rx: 83, ry: 49, rw: 15, rh: 48,
+    series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [[11, 12]] },
+  // Bottom strip
+  { id: "thehub",   name: "The Hub",         floor: "Floor 2", building: "Boston HQ", cap: 20, available: true,
+    amenities: ["tv", "video", "phone"], extra: 3, rx: 19, ry: 79, rw: 62, rh: 18, requestOnly: true,
+    series: [1,1,1,1,1,1,1,1,1,1,1,1], dayBusy: [] },
 ];
 
 /* Desks clustered into pods in the open center of the floor.
@@ -69,7 +95,7 @@ function buildDesks() {
   ];
   const W = 4, H = 5, GAPX = 1.6, SPINE = 4;
   const desks = [];
-  let i = 0;
+  let i = 0, colBase = 0;
   pods.forEach((p) => {
     const rowW = p.cols * W + (p.cols - 1) * GAPX;
     const startX = p.cx - rowW / 2;
@@ -77,14 +103,44 @@ function buildDesks() {
       for (let c = 0; c < p.cols; c++) {
         const x = startX + c * (W + GAPX);
         const y = dir < 0 ? p.cy - SPINE / 2 - H : p.cy + SPINE / 2;
-        desks.push({ id: "desk-" + i, x, y, w: W, h: H, available: i % 2 === 0 });
+        desks.push({ id: "desk-" + i, x, y, w: W, h: H, available: i % 2 === 0,
+          name: "Desk " + (colBase + c + 1) + (dir < 0 ? "A" : "B"),
+          floor: "Floor 1", building: "Boston HQ" });
         i++;
       }
     });
+    colBase += p.cols;
   });
   return desks;
 }
 const DESKS = buildDesks();
+
+function buildDesksF2() {
+  const pods = [
+    { cx: 38, cy: 50, cols: 3 },
+    { cx: 62, cy: 50, cols: 3 },
+  ];
+  const W = 4, H = 5, GAPX = 1.6, SPINE = 4;
+  const desks = [];
+  let i = 0, colBase = 0;
+  pods.forEach((p) => {
+    const rowW = p.cols * W + (p.cols - 1) * GAPX;
+    const startX = p.cx - rowW / 2;
+    [-1, 1].forEach((dir) => {
+      for (let c = 0; c < p.cols; c++) {
+        const x = startX + c * (W + GAPX);
+        const y = dir < 0 ? p.cy - SPINE / 2 - H : p.cy + SPINE / 2;
+        desks.push({ id: "desk-f2-" + i, x, y, w: W, h: H, available: i % 3 !== 0,
+          name: "Desk " + (colBase + c + 1) + (dir < 0 ? "A" : "B"),
+          floor: "Floor 2", building: "Boston HQ" });
+        i++;
+      }
+    });
+    colBase += p.cols;
+  });
+  return desks;
+}
+const DESKS_F2 = buildDesksF2();
 
 /* Service request catalog */
 const SERVICES = [
@@ -121,4 +177,4 @@ function fmtTimeShort(h) {
   return h12 + (m ? ":" + String(m).padStart(2, "0") : "") + ap;
 }
 
-Object.assign(window, { ORGANIZER, PEOPLE_POOL, ROOMS, DESKS, SERVICES, buildSuggestions, HOURS, fmtTime, fmtTimeShort });
+Object.assign(window, { ORGANIZER, PEOPLE_POOL, ROOMS, DESKS, DESKS_F2, SERVICES, buildSuggestions, HOURS, fmtTime, fmtTimeShort });

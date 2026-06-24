@@ -99,7 +99,12 @@ function App() {
   const [finding, setFinding] = useStateApp(false);
   const [success, setSuccess] = useStateApp(false);
   const [viewingSpace, setViewingSpace] = useStateApp(null);
-  const [activeResource, setActiveResource] = useStateApp("spaces");
+  const [activeResource, setActiveResource] = useStateApp(null);
+  const [activeFloor, setActiveFloor] = useStateApp("Floor 1");
+  const activeBuilding = "Boston HQ";
+  const [composerDirty, setComposerDirty] = useStateApp(false);
+  const [viewingDesk, setViewingDesk] = useStateApp(null);
+  const [pendingDesk, setPendingDesk] = useStateApp(null);
 
   useEffectApp(() => {
     const config = ENTRY_CONFIGS[t.entryPoint];
@@ -110,11 +115,31 @@ function App() {
     setFinding(false);
     setSuccess(false);
     setViewingSpace(null);
-    setActiveResource("spaces");
+    setComposerDirty(false);
+    setViewingDesk(null);
+    setPendingDesk(null);
+    setActiveResource(null);
   }, [t.entryPoint]);
 
   // Map click → view space details
-  const viewRoom = (room) => { setViewingSpace(room); setActiveResource("spaces"); };
+  const viewRoom = (room) => { setViewingSpace(room); setViewingDesk(null); };
+
+  // Desk navigation
+  const navigateToDesk = (desk) => {
+    setOpen(false);
+    setComposerDirty(false);
+    setViewingSpace(null);
+    setActiveResource(null);
+    setViewingDesk(desk);
+    set({ spaces: [], services: [], buffer: { on: false, before: 5, after: 5 } });
+  };
+  const handleDeskClick = (desk) => {
+    if (open && composerDirty) {
+      setPendingDesk(desk);
+    } else {
+      navigateToDesk(desk);
+    }
+  };
 
   // Space details footer action (add or remove)
   const handleSpaceAction = () => {
@@ -126,6 +151,7 @@ function App() {
       set({ spaces: [...ev.spaces, viewingSpace] });
       setOpen(true);
     }
+    setComposerDirty(true);
     setViewingSpace(null);
   };
 
@@ -133,6 +159,7 @@ function App() {
   const pickRoom = (room) => {
     const isSelected = ev.spaces.some(s => s.id === room.id);
     set({ spaces: isSelected ? ev.spaces.filter(s => s.id !== room.id) : [...ev.spaces, room] });
+    setComposerDirty(true);
     setPicking(false);
   };
   const reopen = () => {
@@ -141,7 +168,9 @@ function App() {
     setEv(prev => ({ ...prev, title: "", spaces: [], services: [], seriesOn: false, repeatVal: "none", suggestion: null }));
   };
 
-  const panel = viewingSpace ? (
+  const panel = viewingDesk ? (
+    <DeskDetailsPanel desk={viewingDesk} onBack={() => setViewingDesk(null)} />
+  ) : viewingSpace ? (
     <SpaceDetailsPanel
       room={viewingSpace}
       alreadyAdded={ev.spaces.some(s => s.id === viewingSpace.id)}
@@ -155,7 +184,10 @@ function App() {
       : <Composer ev={ev} set={set} tweaks={t} picking={picking} setPicking={setPicking}
           finding={finding} setFinding={setFinding}
           mapMode={mapMode} onPickRoom={pickRoom}
-          onClose={() => { setOpen(false); setViewingSpace(null); setActiveResource(null); set({ spaces: [], services: [], buffer: { on: false, before: 5, after: 5 } }); }} onSubmit={() => { setSuccess(true); }} />
+          activeFloor={activeFloor} setActiveFloor={setActiveFloor} activeBuilding={activeBuilding}
+          dirty={composerDirty} onDirty={() => setComposerDirty(true)}
+          onClose={() => { setOpen(false); setComposerDirty(false); setViewingSpace(null); setActiveResource(null); set({ spaces: [], services: [], buffer: { on: false, before: 5, after: 5 } }); }}
+          onSubmit={() => { setSuccess(true); }} />
   ) : null;
 
   return (
@@ -163,13 +195,14 @@ function App() {
       <Sidebar onCreate={() => {setSuccess(false);setOpen(true);}} />
       {/* main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <TopBar onCreate={() => { setSuccess(false); setOpen(true); }} composerOpen={open} />
+        <TopBar onCreate={() => { setSuccess(false); setOpen(true); }} composerOpen={open}
+          activeFloor={activeFloor} setActiveFloor={setActiveFloor} activeBuilding={activeBuilding} />
         <div style={{ flex: 1, position: "relative", minHeight: 0, display: "flex",
           justifyContent: mapMode ? "flex-start" : "center", alignItems: "center" }}>
           {/* canvas */}
           <div style={mapMode ? { flex: 1, position: "relative", minWidth: 0, alignSelf: "stretch" } : { position: "absolute", inset: 0 }}>
             {mapMode
-              ? <MapCanvas selectableRooms={picking} selectedRoomIds={ev.spaces.map(s => s.id)} onPickRoom={viewRoom} composerOpen={open || !!viewingSpace} activeResource={activeResource} onResourceChange={setActiveResource} eventStart={ev.start} eventEnd={ev.end} />
+              ? <MapCanvas selectableRooms={picking} selectedRoomIds={ev.spaces.map(s => s.id)} onPickRoom={viewRoom} onPickDesk={handleDeskClick} composerOpen={open} activeResource={activeResource} onResourceChange={setActiveResource} eventStart={ev.start} eventEnd={ev.end} activeFloor={activeFloor} />
               : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                   background: "radial-gradient(circle at 50% 0%, #fff, var(--color-bg-layout))" }}>
                   {!open && !success && (
@@ -192,9 +225,15 @@ function App() {
       {/* map mode: right sider — composer/success when open, blank placeholder when closed */}
       {mapMode && (
         <div style={{ position: "relative", zIndex: 10, display: "flex", flexShrink: 0 }}>
-          {panel || <div style={{ width: 420, flexShrink: 0, height: "100%", background: "#fff",
-            borderLeft: "1px solid var(--color-border)", boxShadow: "-8px 0 24px rgba(0,0,0,.06)" }} />}
+          {panel || <OfficeSider />}
         </div>
+      )}
+
+      {/* Dirty-state confirmation when navigating to a desk while composer has changes */}
+      {pendingDesk && (
+        <ConfirmCloseModal
+          onCancel={() => setPendingDesk(null)}
+          onConfirm={() => { navigateToDesk(pendingDesk); setPendingDesk(null); }} />
       )}
 
       {/* Tweaks */}

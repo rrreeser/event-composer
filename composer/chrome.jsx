@@ -76,15 +76,56 @@ function Pill({ icon, label, value, caret = true }) {
   );
 }
 
-function TopBar({ onCreate, composerOpen }) {
+function PillSelect({ icon, value, options, onChange }) {
+  const [open, setOpen] = useStateCh(false);
+  const [h, setH] = useStateCh(false);
+  return (
+    <div style={{ position: "relative" }}>
+      <div onClick={() => setOpen(!open)}
+        onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+        style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px",
+          border: "1px solid " + (h || open ? "var(--color-primary)" : "var(--color-border)"),
+          borderRadius: 4, background: "#fff", cursor: "pointer", transition: "border-color .15s",
+          whiteSpace: "nowrap", userSelect: "none" }}>
+        {icon && <i className={"fa-solid fa-" + icon} style={{ color: "var(--gray-7)", fontSize: 13 }}></i>}
+        <span style={{ fontSize: 14, color: "var(--color-text)", fontWeight: 500 }}>{value}</span>
+        <i className="fa-solid fa-angle-down" style={{ color: "var(--gray-7)", fontSize: 11,
+          transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }}></i>
+      </div>
+      {open && <>
+        <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+        <div style={{ position: "absolute", top: 42, left: 0, zIndex: 50, background: "#fff",
+          border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "var(--shadow-md)",
+          padding: 4, minWidth: 140, animation: "rcPop .12s ease both" }}>
+          {options.map(opt => (
+            <div key={opt} onClick={() => { onChange(opt); setOpen(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+                borderRadius: 5, cursor: "pointer", fontSize: 14,
+                color: opt === value ? "var(--color-primary)" : "var(--color-text)",
+                fontWeight: opt === value ? 500 : 400 }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--gray-2)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <i className={"fa-solid fa-check"} style={{ fontSize: 11, color: "var(--color-primary)",
+                visibility: opt === value ? "visible" : "hidden" }}></i>
+              {opt}
+            </div>
+          ))}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+function TopBar({ onCreate, composerOpen, activeFloor, setActiveFloor, activeBuilding }) {
+  const floors = ["Floor 1", "Floor 2"];
   return (
     <div style={{ borderBottom: "1px solid var(--color-border)", background: "#fff",
       display: "flex", flexDirection: "column", padding: "16px 24px 0", flexShrink: 0, zIndex: 5 }}>
       <h1 style={{ margin: "0 0 12px", fontSize: 30, fontWeight: 500,
         fontFamily: "var(--font-sans)", color: "var(--color-text)", lineHeight: 1.1 }}>Map</h1>
       <div style={{ display: "flex", alignItems: "center", gap: 12, paddingBottom: 14 }}>
-        <Pill icon="building" value="54 State St." />
-        <Pill value="Floor 1" />
+        <Pill icon="building" value={activeBuilding} caret={false} />
+        <PillSelect value={activeFloor} options={floors} onChange={setActiveFloor} />
         {!composerOpen && <>
           <div style={{ width: 1, height: 28, background: "var(--color-border-light)", margin: "0 4px" }}></div>
           <Pill icon="calendar" value="Nov 2" />
@@ -143,9 +184,11 @@ function MapFilters({ composerOpen, activeResource, onResourceChange }) {
 
 /* The schematic floor map: rooms as rectangles around the perimeter,
    desks clustered into pods in the open center. Green = available, grey = booked. */
-function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, composerOpen, activeResource, onResourceChange, eventStart, eventEnd }) {
+function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, onPickDesk, composerOpen, activeResource, onResourceChange, eventStart, eventEnd, activeFloor }) {
   const roomsDimmed = activeResource === "desks" || activeResource === "lockers";
-  const desksDimmed = activeResource === "spaces" || activeResource === "lockers";
+  const desksDimmed = composerOpen || activeResource === "spaces" || activeResource === "lockers";
+  const floorRooms = ROOMS.filter(r => r.floor === activeFloor);
+  const floorDesks = activeFloor === "Floor 2" ? DESKS_F2 : DESKS;
   return (
     <div style={{ position: "absolute", inset: 0, overflow: "hidden", background: "#D5D9DF" }}>
       <MapFilters composerOpen={composerOpen} activeResource={activeResource} onResourceChange={onResourceChange} />
@@ -156,8 +199,8 @@ function MapCanvas({ selectableRooms, selectedRoomIds = [], onPickRoom, composer
           boxShadow: "0 2px 12px rgba(0,0,0,.08)" }}>
           <div style={{ position: "absolute", left: "18%", top: "21%", width: "64%", height: "59%",
             background: "#FAFBFC", border: "1px dashed #E2E5E9", borderRadius: 6 }}></div>
-          {DESKS.map(d => <Desk key={d.id} d={d} dimmed={desksDimmed} />)}
-          {ROOMS.map(r => (
+          {floorDesks.map(d => <Desk key={d.id} d={d} dimmed={desksDimmed} onClick={() => onPickDesk && onPickDesk(d)} />)}
+          {floorRooms.map(r => (
             <RoomRect key={r.id} room={r} selectable={selectableRooms}
               selected={selectedRoomIds.includes(r.id)} dimmed={roomsDimmed}
               eventStart={eventStart} eventEnd={eventEnd}
@@ -195,12 +238,21 @@ function RoomRect({ room, selectable, selected, onClick, dimmed, eventStart, eve
 }
 
 /* A single desk. Greyed out when the Spaces resource is active (not part of that flow). */
-function Desk({ d, dimmed }) {
+function Desk({ d, dimmed, onClick }) {
+  const [h, setH] = useStateCh(false);
   const grey = dimmed || !d.available;
   return (
-    <div style={{ position: "absolute", left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%",
-      background: grey ? "#C8C8C8" : "var(--green-6)", borderRadius: 3, boxSizing: "border-box",
-      border: "1px solid " + (grey ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.08)") }}></div>
+    <div onClick={onClick}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      title={d.name}
+      style={{ position: "absolute", left: d.x + "%", top: d.y + "%", width: d.w + "%", height: d.h + "%",
+        background: grey ? "#C8C8C8" : (h ? "var(--green-7)" : "var(--green-6)"),
+        borderRadius: 3, boxSizing: "border-box",
+        border: "1px solid " + (grey ? "rgba(0,0,0,.05)" : "rgba(0,0,0,.08)"),
+        cursor: "pointer",
+        outline: h && !grey ? "2px solid var(--blue-6)" : "none",
+        outlineOffset: -1,
+        transition: "background .12s, outline .12s" }}></div>
   );
 }
 
@@ -222,4 +274,59 @@ function MapLegend() {
   );
 }
 
-Object.assign(window, { Sidebar, TopBar, MapCanvas, Pill });
+const TIFFANY_BOOKINGS = [
+  { type: "desk",   icon: "chair-office", name: "Desk 12A",        floor: "Floor 1", start: 9,    end: 17 },
+  { type: "space",  icon: "door-open",    name: "Echo Chamber",    floor: "Floor 1", start: 10,   end: 11 },
+  { type: "locker", icon: "lock",         name: "Locker 4B",       floor: "Floor 2", start: null, end: null },
+];
+
+function BookingRow({ booking }) {
+  const timeStr = booking.start !== null
+    ? fmtTimeShort(booking.start) + " – " + fmtTimeShort(booking.end)
+    : "All day";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12,
+      padding: "12px 0", borderBottom: "1px solid var(--color-border-light)" }}>
+      <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+        background: "var(--gray-1)", border: "1px solid var(--color-border)",
+        display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <i className={"fa-solid fa-" + booking.icon}
+          style={{ fontSize: 14, color: "var(--color-text-secondary)" }}></i>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text)",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{booking.name}</div>
+        <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+          {timeStr} · {booking.floor}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OfficeSider() {
+  return (
+    <div style={{ width: 420, flexShrink: 0, height: "100%", background: "#fff",
+      borderLeft: "1px solid var(--color-border)", boxShadow: "-8px 0 24px rgba(0,0,0,.06)",
+      display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ padding: "28px 24px 24px", borderBottom: "1px solid var(--color-border)" }}>
+        <div style={{ fontSize: 22, fontWeight: 600, color: "var(--color-text)", marginBottom: 8, lineHeight: 1.1 }}>
+          Boston HQ
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 14, color: "var(--color-text-secondary)" }}>
+          <i className="fa-solid fa-users" style={{ fontSize: 13 }}></i>
+          <span><strong style={{ color: "var(--color-text)", fontWeight: 500 }}>47</strong> people in the office today</span>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+          letterSpacing: ".06em", color: "var(--color-text-tertiary)", marginBottom: 4 }}>
+          Your bookings today
+        </div>
+        {TIFFANY_BOOKINGS.map((b, i) => <BookingRow key={i} booking={b} />)}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Sidebar, TopBar, MapCanvas, Pill, PillSelect, OfficeSider });
